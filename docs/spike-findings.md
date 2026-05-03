@@ -62,12 +62,22 @@ Phase 1 target: **mean 5+ letter words ≥ 100, p10 ≥ 50, max ≥ 200**. Defen
 
 | Metric | Mean | Min | Max |
 | --- | ---: | ---: | ---: |
-| Jaccard on 5+ word sets (4,950 pairs) | **0.013** | 0 | 0.135 |
-| Levenshtein on flat board string (4,950 pairs) | **21.21** / 25 | 16 | 25 |
+| Jaccard on 5+ word sets (4,950 pairs) | **0.016** | 0 | 0.135 |
+| Levenshtein on flat board string (4,950 pairs) | **21.11** / 25 | 16 | 25 |
 
-Misleading at first glance — Jaccard 0.013 means *specific* word overlap is tiny, and Levenshtein 21/25 means *flat-string* edit distance is high. By those metrics the boards are very different.
+Misleading at first glance — Jaccard 0.016 means *specific* word overlap is tiny, and Levenshtein 21/25 means *flat-string* edit distance is high. By those metrics the boards are very different.
 
-But that's the wrong question. Players don't experience word-set Jaccard; they experience *board feel*. The pattern-level diversity (vowel inventory, vowel ratio, letter family distribution) is **zero** because of the structural finding above. We need a richer diversity metric.
+But that's the wrong question. Players don't experience word-set Jaccard; they experience *board feel*. The pattern-level diversity (vowel inventory, vowel ratio, letter family distribution) is **zero**. The extended bench captures this directly:
+
+| Structural metric | Value | What it means |
+| --- | ---: | --- |
+| `distinctVowelMultisets` | **1** | Across 100 boards there is exactly one vowel multiset. Same vowels every time. |
+| `vowelMultisetEntropyBits` | **0.000** | Zero entropy. Maximally predictable. |
+| `vowelCount.stdDev` | **0.000** | Every board has *exactly* 10 vowels. No variance. |
+| `letterCoverage` | **24/26** | Two letters never appear in any board: `o` and `u`. |
+| `bigramCoverage` | **255/351** | 27% of possible letter-pair adjacencies are unreachable across the whole sample. |
+
+Phase 1's vowel-pool fix moves all five of these. Phase 1 acceptance asserts on each.
 
 **Phase 1 will track**:
 - Jaccard on player-relevant word set (carry forward from baseline)

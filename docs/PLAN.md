@@ -177,6 +177,7 @@ The capstone of the self-improving loop. R&D-side, not browser-side.
 5. Playwright MCP validates each phase's user-visible behavior.
 6. Tracer instrumented from Phase 1 forward (console adapter is fine in early phases).
 7. Each phase ships behind a feature flag or "advanced generation" toggle until the whole system is good enough to be the default.
+8. **Baseline-first.** No PR that touches generation, scoring, search, prompts, models, or parameters merges without a versioned baseline before *and* after the change, with the delta in the PR description. Convention and metrics live in [`BASELINES.md`](./BASELINES.md). The current pre-Phase-1 baseline is `docs/baselines/2026-05-03T19-12-37-790Z__current-generator-pre-phase1.json` — beat it on the metrics that matter, don't regress the others.
 
 ## Open questions to resolve in Phase 0
 

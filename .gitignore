@@ -47,3 +47,6 @@ functions/**/*.js
 /.playwright-mcp
 working-state-*.png
 word-finder-*.png
+
+# Benchmark "latest" pointer; versioned baselines under docs/baselines/ are committed
+docs/.benchmark-baseline.json

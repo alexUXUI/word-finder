@@ -148,6 +148,72 @@ it('baseline: current generator + solver + diversity', async () => {
     }
   }
 
+  // Structural metrics — these are the ones Phase 1's vowel-pool fix moves.
+  const VOWEL_RE = /[aeiou]/i;
+  const vowelMultisetSignature = (s: string) =>
+    [...s.toLowerCase()].filter((c) => VOWEL_RE.test(c)).sort().join('');
+  const vowelMultisets = boards.map(vowelMultisetSignature);
+  const distinctVowelMultisets = new Set(vowelMultisets);
+  const vowelMultisetEntropy = (() => {
+    const counts = new Map<string, number>();
+    for (const v of vowelMultisets) counts.set(v, (counts.get(v) ?? 0) + 1);
+    const total = vowelMultisets.length;
+    let h = 0;
+    for (const c of counts.values()) {
+      const p = c / total;
+      h -= p * Math.log2(p);
+    }
+    return h;
+  })();
+
+  const vowelCounts = boards.map(
+    (s) => [...s.toLowerCase()].filter((c) => VOWEL_RE.test(c)).length
+  );
+
+  // Per-letter frequency across all cells.
+  const letterCounts = new Map<string, number>();
+  let totalCells = 0;
+  for (const b of boards) {
+    for (const c of b.toLowerCase()) {
+      if (/[a-z]/.test(c)) {
+        letterCounts.set(c, (letterCounts.get(c) ?? 0) + 1);
+        totalCells++;
+      }
+    }
+  }
+  const letterFrequencies = Object.fromEntries(
+    Array.from(letterCounts.entries())
+      .map(([k, v]) => [k, v / totalCells])
+      .sort((a, b) => (a[0] as string).localeCompare(b[0] as string))
+  );
+  const letterCoverage = letterCounts.size; // distinct letters seen across N boards
+  const lettersNeverSeen = 'abcdefghijklmnopqrstuvwxyz'
+    .split('')
+    .filter((l) => !letterCounts.has(l));
+
+  // Bigram coverage on the 8-neighbor board graph, across all boards.
+  const seenBigrams = new Set<string>();
+  for (const b of boards) {
+    for (let i = 0; i < SIZE; i++) {
+      for (let j = 0; j < SIZE; j++) {
+        const a = b[i * SIZE + j].toLowerCase();
+        for (const [di, dj] of [
+          [-1, -1], [-1, 0], [-1, 1],
+          [0, -1],           [0, 1],
+          [1, -1],  [1, 0],  [1, 1],
+        ]) {
+          const ni = i + di, nj = j + dj;
+          if (ni < 0 || nj < 0 || ni >= SIZE || nj >= SIZE) continue;
+          const c = b[ni * SIZE + nj].toLowerCase();
+          // Order-independent for this bigram metric (path direction doesn't matter).
+          seenBigrams.add(a < c ? a + c : c + a);
+        }
+      }
+    }
+  }
+  // 26 letters → 26 same-letter bigrams + C(26,2)=325 distinct-letter bigrams = 351 possible.
+  const bigramCoverage = seenBigrams.size;
+
   const totalCounts = results.map((r) => r.total);
   const longCounts = results.map((r) => r.longCount);
   const solveTimes = results.map((r) => r.tSolveMs);
@@ -162,6 +228,8 @@ it('baseline: current generator + solver + diversity', async () => {
       dictUrl: DICT_URL,
       dictSize: dict.length,
       runAt: new Date().toISOString(),
+      label: process.env.BENCH_LABEL ?? 'current-generator',
+      gitSha: process.env.BENCH_GIT_SHA ?? null,
     },
     timing: {
       generationTotalMs,
@@ -179,6 +247,18 @@ it('baseline: current generator + solver + diversity', async () => {
       jaccardSamples: jaccards.length,
       levSamples: levs.length,
     },
+    structural: {
+      // Phase 1's vowel-pool fix moves these. Today they expose the bug:
+      // 1 distinct vowel multiset means every board has the same vowels.
+      distinctVowelMultisets: distinctVowelMultisets.size,
+      vowelMultisetEntropyBits: vowelMultisetEntropy,
+      vowelCount: stats(vowelCounts),
+      letterCoverage,
+      lettersNeverSeen,
+      letterFrequencies,
+      bigramCoverage,
+      bigramCoverageMaxPossible: 351,
+    },
     sampleBoards: results.slice(0, 5).map((r) => ({
       board: r.board,
       totalWords: r.total,
@@ -187,18 +267,23 @@ it('baseline: current generator + solver + diversity', async () => {
     })),
   };
 
-  mkdirSync('docs', { recursive: true });
-  writeFileSync(
-    'docs/.benchmark-baseline.json',
-    JSON.stringify(findings, null, 2)
-  );
+  // Versioned baselines — every run drops a timestamped artifact next to a
+  // pointer at the latest. Phase 1+ acceptance compares against these.
+  mkdirSync('docs/baselines', { recursive: true });
+  const ts = findings.config.runAt.replace(/[:.]/g, '-');
+  const label = findings.config.label.replace(/[^a-z0-9-]/gi, '-');
+  const versionedPath = `docs/baselines/${ts}__${label}.json`;
+  writeFileSync(versionedPath, JSON.stringify(findings, null, 2));
+  writeFileSync('docs/.benchmark-baseline.json', JSON.stringify(findings, null, 2));
 
   console.log('---');
-  console.log('Wrote docs/.benchmark-baseline.json');
+  console.log(`Wrote ${versionedPath}`);
+  console.log('Wrote docs/.benchmark-baseline.json (latest pointer)');
   console.log('Summary:');
   console.log(
     JSON.stringify(
       {
+        label: findings.config.label,
         candidatesPerSecond: findings.timing.candidatesPerSecond.toFixed(2),
         meanSolveMs: findings.timing.solve.mean.toFixed(1),
         avgTotalWords: findings.wordCount.total.mean.toFixed(1),
@@ -208,6 +293,13 @@ it('baseline: current generator + solver + diversity', async () => {
           findings.diversity.jaccardOnPlayerRelevantWordSets.mean.toFixed(3),
         meanLevenshtein:
           findings.diversity.levenshteinOnFlatBoard.mean.toFixed(2),
+        distinctVowelMultisets: findings.structural.distinctVowelMultisets,
+        vowelEntropyBits: findings.structural.vowelMultisetEntropyBits.toFixed(3),
+        vowelCountMean: findings.structural.vowelCount.mean.toFixed(2),
+        vowelCountStdDev: findings.structural.vowelCount.stdDev.toFixed(3),
+        letterCoverage: `${findings.structural.letterCoverage}/26`,
+        lettersNeverSeen: findings.structural.lettersNeverSeen.join(',') || '(none)',
+        bigramCoverage: `${findings.structural.bigramCoverage}/${findings.structural.bigramCoverageMaxPossible}`,
       },
       null,
       2
