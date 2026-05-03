@@ -4,6 +4,7 @@
   "engines": {
     "node": ">=18.0.0"
   },
+  "packageManager": "yarn@1.22.22",
   "private": true,
   "scripts": {
     "wasm": "wasm-pack build ./src/components/boggle/boggle-solver --target web",
