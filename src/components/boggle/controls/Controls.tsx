@@ -171,9 +171,21 @@ export const Controls = component$(() => {
       smart.liveTokens = '';
       smart.searchProgress = undefined;
       try {
-        const { Orchestrator } = await import(
-          '../intelligence/orchestrator'
+        const { runPipeline } = await import(
+          '../intelligence/pipeline/runner'
         );
+        const { initializePipelines } = await import(
+          '../intelligence/pipelines'
+        );
+        const { getChampion, getPipeline } = await import(
+          '../intelligence/pipeline/registry'
+        );
+        initializePipelines();
+        const champion =
+          getChampion() ?? getPipeline('p01-smart-router');
+        if (!champion) {
+          throw new Error('No champion pipeline registered');
+        }
         const provider = smart.refs.provider as unknown as
           | import('../intelligence/local-model').LocalModelProvider
           | undefined;
@@ -187,33 +199,22 @@ export const Controls = component$(() => {
         if (!dict.length) {
           throw new Error('Dictionary not loaded yet');
         }
-        // Budget scales with how aggressive the floor is. Random sampling
-        // has a hard ceiling — at 1500 candidates the expected best is
-        // ~270, at 5000 it's ~300. Past that we're paying time for
-        // diminishing returns. We pick a budget that gives a realistic
-        // shot at the requested floor and stop.
-        const floor = gameState.minWordsPerBoard;
-        // Per-attempt candidates: more for higher floors. Capped at 600
-        // so a single attempt finishes in ~40s on M1 (slower on mobile).
-        const candidatesPerAttempt =
-          floor >= 250 ? 600 : floor >= 200 ? 400 : floor >= 150 ? 300 : 200;
-        // Total attempts: enough that total search depth is meaningful
-        // without endless waiting. 5 × 600 = 3000 candidates, ~3 min worst
-        // case on desktop.
-        const maxAttempts =
-          floor >= 250 ? 5 : floor >= 200 ? 5 : floor >= 150 ? 3 : 3;
-        // Per-attempt time budget: 30 s for big searches, 15 s for light.
-        const maxSearchMs = candidatesPerAttempt >= 400 ? 30000 : 15000;
-        const orchestrator = new Orchestrator({
+        smart.generationStage = 'generating';
+        const result = await runPipeline(champion, {
+          goal: {
+            size: boardState.boardSize,
+            minWordLength: gameState.minCharLength,
+            language: gameState.language,
+            style: 'long-word-heavy',
+            difficulty: 'medium',
+            minPlayerRelevantWords: gameState.minWordsPerBoard,
+          },
+          dictionary: dict,
           model: provider,
           tracer,
-          tools: { availableStrategies: ['frequency-weighted'] },
-          budget: { maxCandidates: candidatesPerAttempt, maxSearchMs },
           callbacks: {
             onNarrate: (line) => {
               smart.narration = [...smart.narration, line];
-              // New step → reset the live-token stream so the next model
-              // call starts with a clean slate. Keeps narration readable.
               smart.liveTokens = '';
               if (line.startsWith('🤔') || line.startsWith('🔍')) {
                 smart.generationStage = line;
@@ -234,30 +235,18 @@ export const Controls = component$(() => {
             },
           },
         });
-        smart.generationStage = 'generating';
-        const result = await orchestrator.generateBoard(
-          {
-            size: boardState.boardSize,
-            minWordLength: gameState.minCharLength,
-            style: 'long-word-heavy',
-            difficulty: 'medium',
-            minPlayerRelevantWords: gameState.minWordsPerBoard,
-            maxAttempts,
-          },
-          dict
-        );
         boardState.chars = [...result.board];
         answersState.answers = [];
         smart.lastExplanation = result.explanation;
-        smart.lastStrategy = result.strategyChosen;
+        smart.lastStrategy = result.strategy;
         smart.lastFinalScore = result.score.finalScore;
         smart.lastModelCalls = result.modelCalls;
         smart.lastElapsedMs = result.elapsedMs;
         smart.lastFloorMet = result.floorMet;
-        smart.lastAttempts = result.attemptsMade;
+        smart.lastAttempts = 1;
         smart.lastFloorTarget = gameState.minWordsPerBoard;
         smart.lastPlayerRelevantWords = result.score.playerRelevantWords;
-        smart.lastTotalCandidates = result.totalCandidatesEvaluated;
+        smart.lastTotalCandidates = result.candidatesEvaluated;
         smart.generationStatus = 'complete';
         smart.generationStage = undefined;
         worker.mod?.postMessage({

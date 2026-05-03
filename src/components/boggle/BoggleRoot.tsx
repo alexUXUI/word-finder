@@ -12,7 +12,7 @@ import { Controls } from './controls/Controls';
 import { WordsPanel } from './controls/WordsPanel';
 import { BoggleBoard } from './board/Board';
 import { SmartBanner } from './intelligence/SmartBanner';
-import { BoardBuilder } from './builder/BoardBuilder';
+import { PipelineLab } from './lab/PipelineLab';
 import { VersionFooter } from './VersionFooter';
 import { installVersionGlobals } from '../../version';
 import { calculateCellWidth, handleFoundWord } from './logic/board';
@@ -176,7 +176,7 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
       <UserGameStats />
       <BoggleBoard />
       <WordsPanel />
-      <BoardBuilder />
+      <PipelineLab />
       <VersionFooter />
     </div>
   );
