@@ -1,52 +1,92 @@
 /**
- * Pick the right SLM for the device.
+ * SLM model registry + tier selection.
  *
- * iPhone X / iPhone-class hardware (≤ 3-4 GB RAM, no WebGPU) crashes when
- * we try to load Qwen2.5-0.5B (~786 MB). iOS Safari kills tabs at ~1.5 GB
- * resident, so we need a smaller model on mobile/low-end devices.
+ * Several browser-runnable instruct models, ordered roughly by size. The UI
+ * exposes them in a dropdown so the player can experiment; the auto-pick
+ * (User-Agent based) is the default.
  *
- * Detection: User-Agent only. Mobile UA → small tier; desktop UA → large.
+ * Storage:
+ *   - localStorage["word-finder.slm-id"] holds the user's manual override.
+ *     Cleared when the user picks "Auto".
+ *   - When unset, selectSlmModel() falls back to UA-based detection.
  *
- * False-negative cost (treating a powerful device as small): mediocre
- * explanations. False-positive cost (treating a low-end device as
- * powerful): tab crash. UA-based detection defaults to safe — every
- * phone / tablet gets the small model regardless of how powerful it
- * thinks it is, because we'd rather sacrifice some quality than crash.
+ * Why this design: iPhone X-class hardware (~3 GB RAM, no WebGPU) OOMs on
+ * anything ≥ 220 MB. The picker lets the player walk the list until they
+ * find one that loads. Server-side fallback is the next layer if even the
+ * tiniest on-device model can't survive.
  */
 
-export interface SlmTier {
-  id: 'small' | 'large';
-  modelId: string;
-  /** Approximate quantized size on disk, MB. For UI hints only. */
-  approxSizeMb: number;
-  /** Display name surfaced in UI. */
-  displayName: string;
-  /** Reason this tier was chosen — for telemetry / debugging. */
-  reason: string;
+export type SlmRecommendation =
+  | 'low-end'
+  | 'modern-mobile'
+  | 'desktop'
+  | 'experimental';
+
+export interface SlmModel {
+  /** Unique key; used in localStorage and as a `<select>` value. */
+  readonly id: string;
+  /** Hugging Face repo id for `pipeline()`. */
+  readonly modelId: string;
+  /** Approximate quantized download size, MB. */
+  readonly approxSizeMb: number;
+  /** Display name shown in the dropdown / banner. */
+  readonly displayName: string;
+  /** Which device class this is best on. */
+  readonly recommendation: SlmRecommendation;
+  /** Short note for the dropdown (quality / known issues). */
+  readonly note: string;
 }
 
-const TIER_LARGE: Omit<SlmTier, 'reason'> = {
-  id: 'large',
-  modelId: 'onnx-community/Qwen2.5-0.5B-Instruct',
-  approxSizeMb: 786,
-  displayName: 'Qwen2.5-0.5B (large)',
-};
-
-const TIER_SMALL: Omit<SlmTier, 'reason'> = {
-  id: 'small',
-  // SmolLM2-360M is the smallest instruct model that produces *coherent*
-  // free-form sentences. The 135M version repeats itself uncontrollably
-  // and we'd rather pay an extra ~100 MB than ship word salad.
-  modelId: 'HuggingFaceTB/SmolLM2-360M-Instruct',
-  approxSizeMb: 220,
-  displayName: 'SmolLM2-360M (small)',
-};
+export interface SlmSelection {
+  readonly model: SlmModel;
+  /** "user preference" / "UA: iPhone" / "UA: Macintosh". */
+  readonly reason: string;
+}
 
 /**
- * Mobile-UA detection. Catches iPhone, iPad, iPod, Android phones+tablets,
- * and any browser that self-identifies as Mobile. Also handles iPadOS 13+
- * which spoofs as Macintosh — touch-point count gives it away.
+ * Browser-runnable instruct models that we've vetted with Transformers.js.
+ * Order matters — first one is the unconditional fallback.
  */
+export const SLM_REGISTRY: readonly SlmModel[] = [
+  {
+    id: 'smollm2-135m',
+    modelId: 'HuggingFaceTB/SmolLM2-135M-Instruct',
+    approxSizeMb: 110,
+    displayName: 'SmolLM2-135M',
+    recommendation: 'low-end',
+    note: 'Tiny, fits anywhere. Repetitive output — dedupe protects us.',
+  },
+  {
+    id: 'smollm2-360m',
+    modelId: 'HuggingFaceTB/SmolLM2-360M-Instruct',
+    approxSizeMb: 220,
+    displayName: 'SmolLM2-360M',
+    recommendation: 'modern-mobile',
+    note: 'Coherent sentences. ~3 GB-RAM iOS may still OOM.',
+  },
+  {
+    id: 'qwen2.5-0.5b',
+    modelId: 'onnx-community/Qwen2.5-0.5B-Instruct',
+    approxSizeMb: 786,
+    displayName: 'Qwen2.5-0.5B',
+    recommendation: 'desktop',
+    note: 'Best quality at small size. Desktop only.',
+  },
+  {
+    id: 'llama3.2-1b',
+    modelId: 'onnx-community/Llama-3.2-1B-Instruct',
+    approxSizeMb: 1100,
+    displayName: 'Llama-3.2-1B',
+    recommendation: 'experimental',
+    note: 'Higher quality but big. Modern desktop GPU recommended.',
+  },
+];
+
+const FALLBACK_DESKTOP = SLM_REGISTRY.find((m) => m.id === 'qwen2.5-0.5b')!;
+const FALLBACK_MOBILE = SLM_REGISTRY.find((m) => m.id === 'smollm2-360m')!;
+
+const STORAGE_KEY = 'word-finder.slm-id';
+
 const looksLikeMobile = (ua: string): boolean => {
   if (/iPhone|iPad|iPod/i.test(ua)) return true;
   if (/Android/i.test(ua)) return true;
@@ -62,11 +102,6 @@ const looksLikeMobile = (ua: string): boolean => {
   return false;
 };
 
-/**
- * Truncated UA string for the chosen-tier `reason` field. Useful in MLflow
- * traces and DevTools to confirm what was detected without dumping the
- * whole UA into the SmartBanner.
- */
 const uaSummary = (ua: string): string => {
   const m = ua.match(
     /(iPhone|iPad|iPod|Android|Mobile|Macintosh|Windows|Linux|CrOS)/i
@@ -74,15 +109,64 @@ const uaSummary = (ua: string): string => {
   return m ? m[1] : ua.slice(0, 32);
 };
 
-export const selectSlmTier = (): SlmTier => {
+export const readSlmPreference = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
+
+export const setSlmPreference = (id: string | null): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    if (id === null) {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } else {
+      window.localStorage.setItem(STORAGE_KEY, id);
+    }
+  } catch {
+    // ignore — private browsing / quota
+  }
+};
+
+export const selectSlmModel = (): SlmSelection => {
+  // 1. User preference (persisted via setSlmPreference).
+  const pref = readSlmPreference();
+  if (pref) {
+    const found = SLM_REGISTRY.find((m) => m.id === pref);
+    if (found) return { model: found, reason: 'user preference' };
+  }
+
+  // 2. UA-based.
   if (typeof navigator === 'undefined') {
-    // SSR — return a sensible default. The actual decision happens on the
-    // client when ensureSmartLoaded() runs after hydration.
-    return { ...TIER_LARGE, reason: 'no navigator (SSR)' };
+    return { model: FALLBACK_DESKTOP, reason: 'no navigator (SSR)' };
   }
   const ua = navigator.userAgent;
   if (looksLikeMobile(ua)) {
-    return { ...TIER_SMALL, reason: `UA: ${uaSummary(ua)}` };
+    return { model: FALLBACK_MOBILE, reason: `UA: ${uaSummary(ua)}` };
   }
-  return { ...TIER_LARGE, reason: `UA: ${uaSummary(ua)}` };
+  return { model: FALLBACK_DESKTOP, reason: `UA: ${uaSummary(ua)}` };
+};
+
+// Backwards-compat shim — earlier code called selectSlmTier() and read
+// .id / .modelId / .approxSizeMb / .displayName off it.
+export interface SlmTier {
+  readonly id: string;
+  readonly modelId: string;
+  readonly approxSizeMb: number;
+  readonly displayName: string;
+  readonly reason: string;
+}
+
+export const selectSlmTier = (): SlmTier => {
+  const sel = selectSlmModel();
+  return {
+    id: sel.model.id,
+    modelId: sel.model.modelId,
+    approxSizeMb: sel.model.approxSizeMb,
+    displayName: sel.model.displayName,
+    reason: sel.reason,
+  };
 };

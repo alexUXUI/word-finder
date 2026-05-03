@@ -16,6 +16,7 @@ import {
   DictionaryCtx,
 } from '../context';
 import { randomBoard } from '../logic/board';
+import { SlmPicker } from './SlmPicker';
 
 export const Controls = component$(() => {
   const gameState = useContext(GameCtx);
@@ -264,6 +265,22 @@ export const Controls = component$(() => {
     smart.enabled = !smart.enabled;
   });
 
+  const handlePickModel = $(async (value: string) => {
+    if (smart.modelStatus === 'loading') return;
+    const { setSlmPreference } = await import(
+      '../intelligence/local-model'
+    );
+    setSlmPreference(value === 'auto' ? null : value);
+    // Drop the loaded provider so the next Reset re-loads with the new
+    // model. Status returns to idle; banner shows the new tier.
+    smart.refs.provider = undefined;
+    smart.refs.tracer = undefined;
+    smart.modelStatus = 'idle';
+    smart.modelLoadProgress = 0;
+    smart.modelLoadError = undefined;
+    smart.slmTier = undefined;
+  });
+
   const handleChangeLanguage = $((e: QwikChangeEvent<HTMLSelectElement>) => {
     const { value } = e.target;
     gameState.language = value;
@@ -438,9 +455,8 @@ export const Controls = component$(() => {
                   data-testid="smart-mode-tier-hint"
                   style="font-size:11px; color:#666; margin-top:2px;"
                 >
-                  On first reset, downloads the right SLM for your device
-                  based on your browser's User-Agent (small on mobile ~220 MB,
-                  large on desktop ~786 MB), then uses it locally.
+                  On first reset, downloads the chosen SLM, then uses it
+                  locally. Smaller models are safer on mobile.
                 </span>
               )}
               {smart.slmTier && smart.modelStatus === 'ready' && (
@@ -448,10 +464,27 @@ export const Controls = component$(() => {
                   data-testid="smart-mode-tier-info"
                   style="font-size:11px; color:#666; margin-top:2px;"
                 >
-                  Tier: <strong>{smart.slmTier.id}</strong>
-                  {' '}({smart.slmTier.approxSizeMb} MB) — {smart.slmTier.reason}
+                  Loaded: <strong>{smart.slmTier.displayName}</strong>
+                  {' '}({smart.slmTier.approxSizeMb} MB) — picked via {smart.slmTier.reason}
                 </span>
               )}
+            </div>
+            <div class="flex flex-col my-[10px] w-full">
+              <label class="text-[14px] w-fit" for="slm-picker">
+                SLM Model
+              </label>
+              <SlmPicker
+                disabled={smart.modelStatus === 'loading'}
+                onPick$={handlePickModel}
+              />
+              <span
+                data-testid="slm-picker-hint"
+                style="font-size:11px; color:#666; margin-top:2px;"
+              >
+                Auto picks based on your device's User-Agent. Override to
+                test which models load on your phone — switching reloads
+                the model on the next Reset.
+              </span>
             </div>
           </fieldset>
         </form>

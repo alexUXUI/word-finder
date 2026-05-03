@@ -6,5 +6,11 @@ export type {
   LocalModelProvider,
 } from './types';
 export { TransformersJsProvider } from './transformers-js';
-export { selectSlmTier } from './device-tier';
-export type { SlmTier } from './device-tier';
+export {
+  selectSlmTier,
+  selectSlmModel,
+  setSlmPreference,
+  readSlmPreference,
+  SLM_REGISTRY,
+} from './device-tier';
+export type { SlmTier, SlmModel, SlmSelection, SlmRecommendation } from './device-tier';
