@@ -9,6 +9,8 @@ import type {
 } from './models';
 import type { BuilderState } from './builder/types';
 
+export type { BuilderState };
+
 export const BoardCtx = createContext<BoardState>('board-context');
 export const DictionaryCtx = createContext<DictionaryState>('dictionary');
 export const GameCtx = createContext<GameState>('game-context');
@@ -23,9 +25,9 @@ export interface SmartState {
   modelStatus: SmartModelStatus;
   modelLoadProgress: number;
   modelLoadError?: string;
-  /** Which model tier was picked for this device (small for mobile, large for desktop). */
+  /** Which model tier was picked for this device. Open string id; matches SLM_REGISTRY entries. */
   slmTier?: {
-    id: 'small' | 'large';
+    id: string;
     modelId: string;
     approxSizeMb: number;
     displayName: string;

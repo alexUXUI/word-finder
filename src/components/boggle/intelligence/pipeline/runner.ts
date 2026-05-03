@@ -1,0 +1,334 @@
+/**
+ * Pipeline runner. Walks the role graph, threading `RoleContext` through
+ * each step, producing a `PipelineResult` plus a `GenerationTrace`.
+ *
+ * Flow (with optional steps in []):
+ *   PromptParser → StrategyRouter → CandidateGenerator
+ *     → [Mutator loop: iterations × proposeSwaps + apply + score]
+ *     → [Critic.rate per candidate]
+ *     → Aggregator.pick
+ *     → Narrator.narrate
+ *
+ * The runner emits one MLflow span per role step, plus per-iteration spans
+ * for the mutator loop. The trace shape is independent of which
+ * implementations the pipeline picked — that's the point.
+ */
+
+import type { Pipeline } from './types';
+import type {
+  BoardGenerationGoal,
+  PipelineResult,
+  RoleContext,
+  ScoredBoard,
+  ScoredBoardWithCritic,
+} from '../roles/types';
+import { listStrategies, getStrategy } from '../../generation/registry';
+import { buildTrie } from '../../logic/trie';
+import { solveWithTrie } from '../../logic/boggle';
+import { scoreBoard, DEFAULT_WEIGHTS } from '../../generation/scorer';
+import type { ScoreWeights } from '../../generation/scorer';
+import type { LocalModelProvider } from '../local-model/types';
+import type { Tracer } from '../../generation/trace';
+
+export interface PipelineRunInput {
+  goal: BoardGenerationGoal;
+  dictionary: readonly string[];
+  /** Optional model provider — required by SLM-using role implementations. */
+  model?: LocalModelProvider;
+  tracer: Tracer;
+  /** UI / lifecycle callbacks. */
+  callbacks?: {
+    onNarrate?: (line: string) => void;
+    onTokenStream?: (chunk: string, accumulator: string) => void;
+    onSearchProgress?: (info: {
+      index: number;
+      total: number;
+      bestScore: number;
+      playerRelevantWords: number;
+    }) => void;
+  };
+  signal?: AbortSignal;
+  /** Per-style weight overrides. Falls back to default scorer weights. */
+  weightsForStyle?: (style: BoardGenerationGoal['style']) => Partial<ScoreWeights>;
+}
+
+const goalSignature = (g: BoardGenerationGoal): string => {
+  const parts = [
+    `size=${g.size}`,
+    `min=${g.minWordLength}`,
+    g.style ? `style=${g.style}` : null,
+    g.difficulty ? `diff=${g.difficulty}` : null,
+    g.novelty ? `nov=${g.novelty}` : null,
+    g.requiredLetters?.length ? `req=${g.requiredLetters.join('')}` : null,
+    g.avoidedLetters?.length ? `avoid=${g.avoidedLetters.join('')}` : null,
+  ].filter(Boolean);
+  return parts.join(';');
+};
+
+/** Apply a swap in place to a flat board string; returns a new string. */
+const applySwap = (board: string, i: number, j: number): string => {
+  if (i === j) return board;
+  const cells = board.split('');
+  [cells[i], cells[j]] = [cells[j], cells[i]];
+  return cells.join('');
+};
+
+/**
+ * Re-solve and score a board after mutation. Caller passes the prebuilt
+ * trie so we don't pay the build cost per iteration.
+ */
+const rescore = (
+  board: string,
+  goal: BoardGenerationGoal,
+  trie: ReturnType<typeof buildTrie>,
+  weights: Readonly<ScoreWeights>
+): ScoredBoard => {
+  const words = solveWithTrie(trie, board.split(''));
+  const score = scoreBoard(board, words, {
+    minWordLength: goal.minWordLength,
+    weights,
+  });
+  return { board, words, score, source: 'mutated' };
+};
+
+export const runPipeline = async (
+  pipeline: Pipeline,
+  input: PipelineRunInput
+): Promise<PipelineResult> => {
+  const t0 = performance.now();
+  const cb = input.callbacks ?? {};
+  const goalIn = input.goal;
+
+  const handle = input.tracer.startTrace({
+    generation_id: `gen-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    goal_signature: goalSignature(goalIn),
+    model_versions: { orchestrator: input.model?.id ?? 'no-model' },
+  });
+  const root = handle.startSpan('pipeline.run', 'AGENT');
+  root.setAttribute('pipeline_id', pipeline.id);
+  root.setAttribute('pipeline_version', pipeline.version);
+  root.setAttribute('goal_signature', goalSignature(goalIn));
+  root.setInputs({ pipeline: pipeline.id, goal: goalIn });
+
+  const baseWeights: ScoreWeights = {
+    ...DEFAULT_WEIGHTS,
+    ...(input.weightsForStyle?.(goalIn.style) ?? {}),
+  };
+
+  const ctx: RoleContext = {
+    trace: input.tracer,
+    parentSpanId: undefined,
+    model: input.model,
+    dictionary: input.dictionary,
+    narrate: cb.onNarrate,
+    tokenStream: cb.onTokenStream,
+    searchProgress: cb.onSearchProgress,
+    signal: input.signal,
+    scoreWeights: baseWeights,
+  };
+
+  let modelCalls = 0;
+  let candidatesEvaluated = 0;
+  let mutationsApplied = 0;
+
+  try {
+    // Step 0 — PromptParser
+    cb.onNarrate?.('🎯 Pipeline: ' + pipeline.id);
+    const parserSpan = handle.startSpan(`role.${pipeline.roles.promptParser.id}`, 'CHAIN', root);
+    const parsedGoal = await pipeline.roles.promptParser.parse(goalIn, ctx);
+    parserSpan.setAttribute('role', 'prompt-parser');
+    parserSpan.setAttribute('impl', pipeline.roles.promptParser.id);
+    parserSpan.end();
+
+    // Step 1 — StrategyRouter
+    const available = listStrategies();
+    cb.onNarrate?.('🤔 Strategy router…');
+    const routerSpan = handle.startSpan(`role.${pipeline.roles.strategyRouter.id}`, 'CHAT_MODEL', root);
+    const strategyId = await pipeline.roles.strategyRouter.route(parsedGoal, available, ctx);
+    if (pipeline.roles.strategyRouter.id !== 'rule-based:frequency-weighted' &&
+        pipeline.roles.strategyRouter.id.startsWith('slm')) {
+      modelCalls++;
+    }
+    if (pipeline.roles.strategyRouter.id.startsWith('slm')) {
+      modelCalls++;
+    }
+    const strategy = getStrategy(strategyId);
+    if (!strategy) throw new Error(`pipeline returned unknown strategy: ${strategyId}`);
+    routerSpan.setAttribute('role', 'strategy-router');
+    routerSpan.setAttribute('impl', pipeline.roles.strategyRouter.id);
+    routerSpan.setAttribute('chosen', strategyId);
+    routerSpan.end();
+    cb.onNarrate?.(`💡 Strategy: ${strategyId}`);
+
+    // Step 2 — CandidateGenerator
+    cb.onNarrate?.('🔍 Generating candidates…');
+    const genSpan = handle.startSpan(`role.${pipeline.roles.candidateGenerator.id}`, 'TOOL', root);
+    let candidates = await pipeline.roles.candidateGenerator.generate({
+      goal: parsedGoal,
+      strategyId,
+      ctx,
+    });
+    candidatesEvaluated += candidates.length;
+    genSpan.setAttribute('role', 'candidate-generator');
+    genSpan.setAttribute('impl', pipeline.roles.candidateGenerator.id);
+    genSpan.setAttribute('candidates', candidates.length);
+    genSpan.end();
+    if (candidates.length === 0) throw new Error('candidate generator returned empty pool');
+
+    // Step 3 — Mutator loop (optional)
+    if (pipeline.roles.mutator && pipeline.mutationLoop) {
+      const mut = pipeline.roles.mutator;
+      const cfg = pipeline.mutationLoop;
+      const trie = buildTrie([...input.dictionary]);
+      // Mutator hill-climbs the best candidate.
+      let current: ScoredBoard = candidates.reduce((a, b) =>
+        b.score.finalScore > a.score.finalScore ? b : a
+      );
+      const mutSpan = handle.startSpan(`role.${mut.id}`, 'TOOL', root);
+      mutSpan.setAttribute('role', 'mutator');
+      mutSpan.setAttribute('impl', mut.id);
+      mutSpan.setAttribute('iterations', cfg.iterations);
+      cb.onNarrate?.(`🧬 Hill-climb (${mut.id}, ${cfg.iterations} iters × ${cfg.swapsPerIteration} swaps)…`);
+      for (let iter = 0; iter < cfg.iterations; iter++) {
+        if (input.signal?.aborted) break;
+        const iterSpan = handle.startSpan(`mutator.iter.${iter}`, 'TOOL', mutSpan);
+        const swaps = await mut.proposeSwaps({
+          board: current,
+          goal: parsedGoal,
+          k: cfg.swapsPerIteration,
+          ctx,
+        });
+        if (mut.id.startsWith('slm')) modelCalls++;
+        iterSpan.setAttribute('proposed', swaps.length);
+        let bestThisIter: ScoredBoard = current;
+        for (const swap of swaps) {
+          const candidateBoard = applySwap(current.board, swap.i, swap.j);
+          const cand = rescore(candidateBoard, parsedGoal, trie, baseWeights);
+          candidatesEvaluated++;
+          if (cand.score.finalScore > bestThisIter.score.finalScore) {
+            bestThisIter = cand;
+          }
+        }
+        const accept = cfg.acceptOnlyImprovements === false
+          ? bestThisIter !== current
+          : bestThisIter.score.finalScore > current.score.finalScore;
+        if (accept) {
+          mutationsApplied++;
+          iterSpan.setAttribute('accepted', true);
+          iterSpan.setAttribute('delta', bestThisIter.score.finalScore - current.score.finalScore);
+          current = bestThisIter;
+          cb.onNarrate?.(
+            `↗︎ iter ${iter + 1}: +${(
+              bestThisIter.score.finalScore - current.score.finalScore
+            ).toFixed(1)} → ${bestThisIter.score.playerRelevantWords} player words`
+          );
+        } else {
+          iterSpan.setAttribute('accepted', false);
+        }
+        iterSpan.end();
+      }
+      mutSpan.setAttribute('mutations_applied', mutationsApplied);
+      mutSpan.end();
+      // Hill-climbed result replaces the candidate pool.
+      candidates = [current];
+    }
+
+    // Step 4 — Critic (optional)
+    let scored: ScoredBoardWithCritic[];
+    if (pipeline.roles.critic) {
+      const critic = pipeline.roles.critic;
+      const critSpan = handle.startSpan(`role.${critic.id}`, 'EVALUATION', root);
+      critSpan.setAttribute('role', 'critic');
+      critSpan.setAttribute('impl', critic.id);
+      const ratings = await Promise.all(
+        candidates.map((c) => critic.rate({ board: c, goal: parsedGoal, ctx }))
+      );
+      if (critic.id.startsWith('slm')) modelCalls += candidates.length;
+      scored = candidates.map((c, i) => ({ ...c, critic: ratings[i] }));
+      critSpan.end();
+    } else {
+      scored = candidates.map((c) => ({ ...c }));
+    }
+
+    // Step 5 — Aggregator
+    const aggSpan = handle.startSpan(`role.${pipeline.roles.aggregator.id}`, 'CHAIN', root);
+    const chosen = await pipeline.roles.aggregator.pick({
+      candidates: scored,
+      goal: parsedGoal,
+      ctx,
+    });
+    aggSpan.setAttribute('role', 'aggregator');
+    aggSpan.setAttribute('impl', pipeline.roles.aggregator.id);
+    aggSpan.setAttribute('chosen_score', chosen.score.finalScore);
+    aggSpan.end();
+
+    // Step 6 — Narrator
+    cb.onNarrate?.('💬 Narrating…');
+    const narrSpan = handle.startSpan(`role.${pipeline.roles.narrator.id}`, 'CHAT_MODEL', root);
+    const explanation = await pipeline.roles.narrator.narrate({
+      chosen,
+      goal: parsedGoal,
+      ctx,
+    });
+    if (pipeline.roles.narrator.id.startsWith('slm')) modelCalls++;
+    narrSpan.setAttribute('role', 'narrator');
+    narrSpan.setAttribute('impl', pipeline.roles.narrator.id);
+    narrSpan.setAttribute('output_chars', explanation.length);
+    narrSpan.end();
+
+    cb.onNarrate?.('✅ Done.');
+    const elapsedMs = performance.now() - t0;
+    const floor = goalIn.minPlayerRelevantWords ?? 0;
+    const floorMet = floor === 0 || chosen.score.playerRelevantWords >= floor;
+
+    root.setAttribute('model_calls', modelCalls);
+    root.setAttribute('candidates_evaluated', candidatesEvaluated);
+    root.setAttribute('mutations_applied', mutationsApplied);
+    root.setAttribute('elapsed_ms', elapsedMs);
+    root.setAttribute('final_score', chosen.score.finalScore);
+    root.setAttribute('player_relevant_words', chosen.score.playerRelevantWords);
+    root.setOutputs({ board: chosen.board, finalScore: chosen.score.finalScore });
+    root.end();
+
+    const trace = handle.finish({
+      final_score: chosen.score.finalScore,
+      final_metrics: { ...chosen.score },
+      elapsed_ms: elapsedMs,
+      candidates_evaluated: candidatesEvaluated,
+      model_calls: modelCalls,
+      estimated_cost_usd: 0,
+      budget_exhausted: false,
+      selected_strategy: strategyId,
+    });
+
+    return {
+      board: chosen.board,
+      score: chosen.score,
+      words: [...chosen.words],
+      strategy: strategyId,
+      explanation,
+      modelCalls,
+      candidatesEvaluated,
+      mutationsApplied,
+      elapsedMs,
+      floorMet,
+      trace,
+      criticScore: chosen.critic,
+    };
+  } catch (e) {
+    const err = e as Error;
+    root.recordError({ message: err.message, stack: err.stack });
+    root.end();
+    handle.finish({
+      final_score: 0,
+      final_metrics: { error: err.message },
+      elapsed_ms: performance.now() - t0,
+      candidates_evaluated: candidatesEvaluated,
+      model_calls: modelCalls,
+      estimated_cost_usd: 0,
+      budget_exhausted: true,
+      selected_strategy: '(error)',
+    });
+    throw e;
+  }
+};

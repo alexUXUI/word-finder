@@ -217,58 +217,11 @@ export const updatePath = ({
  * englishVowels/englishConsonants arrays which omitted `o` and `u` and
  * misclassified `s` as a vowel.
  */
-export const ENGLISH_LETTER_FREQUENCY: Readonly<Record<string, number>> = {
-  a: 8.2,
-  b: 1.5,
-  c: 2.8,
-  d: 4.3,
-  e: 12.7,
-  f: 2.2,
-  g: 2.0,
-  h: 6.1,
-  i: 7.0,
-  j: 0.15,
-  k: 0.77,
-  l: 4.0,
-  m: 2.4,
-  n: 6.7,
-  o: 7.5,
-  p: 1.9,
-  q: 0.095,
-  r: 6.0,
-  s: 6.3,
-  t: 9.1,
-  u: 2.8,
-  v: 0.98,
-  w: 2.4,
-  x: 0.15,
-  y: 2.0,
-  z: 0.074,
-};
-
-/**
- * Sample N letters with replacement from a weighted frequency table.
- * Each letter is drawn independently — counts vary across calls.
- */
-export const sampleFromFrequency = (
-  freqs: Readonly<Record<string, number>>,
-  count: number
-): string[] => {
-  const entries = Object.entries(freqs);
-  const total = entries.reduce((s, [, w]) => s + w, 0);
-  const out: string[] = [];
-  for (let i = 0; i < count; i++) {
-    let r = Math.random() * total;
-    for (const [letter, w] of entries) {
-      r -= w;
-      if (r <= 0) {
-        out.push(letter);
-        break;
-      }
-    }
-  }
-  return out;
-};
+export {
+  ENGLISH_LETTER_FREQUENCY,
+  sampleFromFrequency,
+} from './letter-frequency';
+import { ENGLISH_LETTER_FREQUENCY, sampleFromFrequency } from './letter-frequency';
 
 /**
  * Legacy entry point used by SSR and Controls.tsx. Mirrors the
@@ -281,7 +234,7 @@ export const randomBoard = (language: LanguageType, length: number): string => {
   const lengthSquared = length * length;
   switch (language) {
     case Language.Russian:
-      return generateRandomBoard(length, Language.Russian);
+      return _genLegacy(length, Language.Russian);
     case Language.English:
     case Language.Spanish:
     default:
@@ -291,76 +244,8 @@ export const randomBoard = (language: LanguageType, length: number): string => {
   }
 };
 
-export const generateRandomBoard = (
-  length: number,
-  language: LanguageType
-): string => {
-  const lengthSquared = length * length;
-
-  let vowels = [];
-  let consonants = [];
-  let unpopularConsonants = [];
-
-  switch (language) {
-    case Language.English:
-      vowels = englishVowels;
-      consonants = englishConsonants;
-      unpopularConsonants = englishUnpopularConsonants;
-      break;
-    case Language.Spanish:
-      vowels = englishVowels;
-      consonants = englishConsonants;
-      unpopularConsonants = englishUnpopularConsonants;
-      break;
-    case Language.Russian:
-      vowels = russianVowels;
-      consonants = russianConsonants;
-      unpopularConsonants = russianUnpopularConsonants;
-      break;
-    default:
-      vowels = englishVowels;
-      consonants = englishConsonants;
-      unpopularConsonants = englishUnpopularConsonants;
-  }
-
-  const shuffledVowels = vowels.sort(() => 0.5 - Math.random());
-  const shuffledConsonants = consonants.sort(() => 0.5 - Math.random());
-
-  const zip = (a: string[], b: string[]) => {
-    const result = [];
-    for (let i = 0; i < a.length; i++) {
-      result.push(a[i]);
-      result.push(b[i]);
-    }
-    return result;
-  };
-
-  const zipped = zip(shuffledVowels, shuffledConsonants);
-
-  const randomUnPopularConsonant =
-    unpopularConsonants[Math.floor(Math.random() * unpopularConsonants.length)];
-
-  const results = [...zipped, randomUnPopularConsonant];
-  const shuffledResults = results.sort(() => 0.5 - Math.random());
-
-  if (lengthSquared > results.length) {
-    const difference = lengthSquared - results.length;
-    for (let i = 0; i < difference; i++) {
-      const randomVowel = vowels[Math.floor(Math.random() * vowels.length)];
-      const randomConsonant =
-        consonants[Math.floor(Math.random() * consonants.length)];
-      const vowelOrConsonant =
-        Math.random() > 0.5 ? randomVowel : randomConsonant;
-      results.push(vowelOrConsonant);
-    }
-  } else if (lengthSquared < results.length) {
-    const shuffledResults = results.sort(() => 0.5 - Math.random());
-    shuffledResults.splice(lengthSquared, results.length);
-    return shuffledResults.join('');
-  }
-
-  return shuffledResults.join('');
-};
+import { generateRandomBoard as _genLegacy } from './legacy-pools';
+export { generateRandomBoard } from './legacy-pools';
 
 export const handleFoundWord = $(
   (
@@ -419,92 +304,14 @@ export const bgColor = (
   return cellBgColor;
 };
 
-export const englishVowels = [
-  'e',
-  'e',
-  'e',
-  'e',
-  'e',
-  'a',
-  'a',
-  'a',
-  'i',
-  'i',
-  's',
-  's',
-];
-export const englishConsonants = [
-  'r',
-  'h',
-  'm',
-  't',
-  'd',
-  'c',
-  'l',
-  'b',
-  'f',
-  'g',
-  'n',
-  'p',
-  'w',
-];
-export const englishUnpopularConsonants = [
-  'j',
-  'k',
-  'k',
-  'q',
-  'v',
-  'x',
-  'y',
-  'y',
-  'y',
-  'z',
-];
-
-export const russianVowels = [
-  'а',
-  'а',
-  'а',
-  'о',
-  'е',
-  'е',
-  'е',
-  'и',
-  'и',
-  'и',
-  'н',
-];
-
-export const russianConsonants = [
-  'р',
-  'т',
-  'к',
-  'м',
-  'д',
-  'п',
-  'у',
-  'я',
-  'ы',
-  'ь',
-  'г',
-  'з',
-  'б',
-  'ч',
-  'й',
-  'х',
-  'ж',
-  'ш',
-  'ю',
-  'ц',
-  'щ',
-  'ф',
-  'э',
-  'с',
-  'в',
-  'л',
-];
-
-export const russianUnpopularConsonants = ['й', 'к'];
+export {
+  englishVowels,
+  englishConsonants,
+  englishUnpopularConsonants,
+  russianVowels,
+  russianConsonants,
+  russianUnpopularConsonants,
+} from './legacy-pools';
 
 export const calculateCellWidth = (boardWidth: number, boardSize: number) => {
   switch (boardSize) {

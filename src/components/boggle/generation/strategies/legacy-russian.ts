@@ -1,4 +1,4 @@
-import { generateRandomBoard } from '../../logic/board';
+import { generateRandomBoard } from '../../logic/legacy-pools';
 import { Language } from '../../models';
 import type { BoardStrategy, BoardStrategyResult } from '../types';
 

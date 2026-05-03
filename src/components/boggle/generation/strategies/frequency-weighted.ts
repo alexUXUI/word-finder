@@ -1,7 +1,7 @@
 import {
   ENGLISH_LETTER_FREQUENCY,
   sampleFromFrequency,
-} from '../../logic/board';
+} from '../../logic/letter-frequency';
 import type { BoardStrategy, BoardStrategyResult } from '../types';
 
 /**
