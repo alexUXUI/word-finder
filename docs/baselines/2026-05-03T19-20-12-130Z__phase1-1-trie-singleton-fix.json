@@ -1,0 +1,211 @@
+{
+  "config": {
+    "N_BOARDS": 100,
+    "SIZE": 5,
+    "MIN_WORD_LEN": 5,
+    "dictUrl": "https://boggle.pages.dev/engmix.txt",
+    "dictSize": 84099,
+    "runAt": "2026-05-03T19:20:12.130Z",
+    "label": "phase1.1-trie-singleton-fix",
+    "gitSha": "86aebdd"
+  },
+  "timing": {
+    "generationTotalMs": 3.7317879999999377,
+    "generationPerBoardMs": 0.03731787999999938,
+    "solve": {
+      "min": 48.10648899999978,
+      "max": 97.63193200000012,
+      "mean": 62.17218822999998,
+      "median": 60.84702399999969,
+      "p10": 52.140570000000025,
+      "p90": 74.71483799999987,
+      "stdDev": 8.879447532278908
+    },
+    "candidatesPerSecond": 16.084362292358072
+  },
+  "wordCount": {
+    "total": {
+      "min": 173,
+      "max": 486,
+      "mean": 297.2,
+      "median": 291,
+      "p10": 220,
+      "p90": 378,
+      "stdDev": 63.423812562790665
+    },
+    "playerRelevant_5plus": {
+      "min": 25,
+      "max": 200,
+      "mean": 77.25,
+      "median": 73,
+      "p10": 38,
+      "p90": 122,
+      "stdDev": 31.78910977048587
+    }
+  },
+  "diversity": {
+    "jaccardOnPlayerRelevantWordSets": {
+      "min": 0,
+      "max": 0.17551020408163265,
+      "mean": 0.012530986897615759,
+      "median": 0.008333333333333333,
+      "p10": 0,
+      "p90": 0.03184713375796178,
+      "stdDev": 0.014738231003209552
+    },
+    "levenshteinOnFlatBoard": {
+      "min": 16,
+      "max": 25,
+      "mean": 21.202626262626264,
+      "median": 21,
+      "p10": 20,
+      "p90": 23,
+      "stdDev": 1.3014184847471653
+    },
+    "jaccardSamples": 4950,
+    "levSamples": 4950
+  },
+  "structural": {
+    "distinctVowelMultisets": 1,
+    "vowelMultisetEntropyBits": 0,
+    "vowelCount": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "median": 10,
+      "p10": 10,
+      "p90": 10,
+      "stdDev": 0
+    },
+    "letterCoverage": 24,
+    "lettersNeverSeen": [
+      "o",
+      "u"
+    ],
+    "letterFrequencies": {
+      "a": 0.12,
+      "b": 0.0372,
+      "c": 0.0372,
+      "d": 0.0344,
+      "e": 0.2,
+      "f": 0.0372,
+      "g": 0.0372,
+      "h": 0.0376,
+      "i": 0.08,
+      "j": 0.0036,
+      "k": 0.0088,
+      "l": 0.0376,
+      "m": 0.0372,
+      "n": 0.0356,
+      "p": 0.0352,
+      "q": 0.0056,
+      "r": 0.0392,
+      "s": 0.08,
+      "t": 0.0368,
+      "v": 0.0064,
+      "w": 0.0376,
+      "x": 0.004,
+      "y": 0.0084,
+      "z": 0.0032
+    },
+    "bigramCoverage": 255,
+    "bigramCoverageMaxPossible": 351
+  },
+  "sampleBoards": [
+    {
+      "board": "lijgspirseeeeadefbtcwaahn",
+      "totalWords": 364,
+      "fivePlusWords": 137,
+      "sampleLongWords": [
+        "abase",
+        "abased",
+        "abases",
+        "abate",
+        "abater",
+        "abaters",
+        "abates",
+        "actes",
+        "aries",
+        "arses",
+        "bares",
+        "barge"
+      ]
+    },
+    {
+      "board": "efabahlagedpvwiesemetsrci",
+      "totalWords": 222,
+      "fivePlusWords": 51,
+      "sampleLongWords": [
+        "agape",
+        "apses",
+        "avers",
+        "averse",
+        "baldest",
+        "creme",
+        "crepe",
+        "crepes",
+        "cress",
+        "crest",
+        "crested",
+        "crests"
+      ]
+    },
+    {
+      "board": "bnaelipmweadsecehgtsaqier",
+      "totalWords": 263,
+      "fivePlusWords": 62,
+      "sampleLongWords": [
+        "adman",
+        "ahead",
+        "apses",
+        "edges",
+        "edgier",
+        "edgiest",
+        "elect",
+        "elects",
+        "ester",
+        "esters",
+        "headman",
+        "headpin"
+      ]
+    },
+    {
+      "board": "weeafeaincteahgbsvsemrilp",
+      "totalWords": 255,
+      "fivePlusWords": 72,
+      "sampleLongWords": [
+        "aches",
+        "aching",
+        "angel",
+        "angels",
+        "beanie",
+        "beast",
+        "beats",
+        "beets",
+        "being",
+        "beings",
+        "canasta",
+        "chain"
+      ]
+    },
+    {
+      "board": "ezecsfaesnarieeiapbdgltwh",
+      "totalWords": 308,
+      "fivePlusWords": 94,
+      "sampleLongWords": [
+        "aerial",
+        "aires",
+        "apiece",
+        "april",
+        "aries",
+        "arise",
+        "arisen",
+        "biens",
+        "biped",
+        "cerise",
+        "dense",
+        "denser"
+      ]
+    }
+  ]
+}

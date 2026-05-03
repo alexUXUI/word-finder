@@ -1,4 +1,4 @@
-import { trie } from './trie';
+import { TrieClass, buildTrie } from './trie';
 
 export const convertStringToMatrix = (letters: string) => {
   const stringLength = letters.length;
@@ -123,19 +123,24 @@ export const getWords = (board: string[][], trie: any): string[] => {
 };
 
 export const solve = (words: string[], board: string[]): string[] => {
-  let results: string[] = [];
+  // Allocate a fresh trie per call. The previous behavior leaned on a
+  // module-level singleton that accumulated words across calls.
+  const trie = buildTrie(words);
+  return solveWithTrie(trie, board);
+};
 
+/**
+ * Hot-path variant — accepts a pre-built trie. The search engine builds the
+ * trie once per dictionary and reuses it across hundreds of candidate boards.
+ */
+export const solveWithTrie = (trie: TrieClass, board: string[]): string[] => {
+  let results: string[] = [];
   try {
-    // build a trie from the dictionary
-    words.forEach((word: string) => trie.add(word));
-    // convert the board string to a 2D matrix
     const stringToMatrix = convertStringToMatrix(board.join(''));
-    // get the words from the board
     results = getWords(stringToMatrix, trie).sort();
   } catch (error) {
     console.log('error', error);
     console.log(error);
   }
-
   return results;
 };
