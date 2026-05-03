@@ -6,6 +6,13 @@ import wasm from 'vite-plugin-wasm';
 import wasmPack from 'vite-plugin-wasm-pack';
 import topLevelAwait from 'vite-plugin-top-level-await';
 
+// Cross-Origin Isolation headers — required for SharedArrayBuffer (Transformers.js
+// WebAssembly multithreaded inference) and recommended for WebGPU device access.
+const crossOriginIsolationHeaders = {
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cross-Origin-Embedder-Policy': 'require-corp',
+};
+
 export default defineConfig(() => {
   return {
     plugins: [
@@ -19,10 +26,20 @@ export default defineConfig(() => {
       format: 'es',
       plugins: [wasm(), topLevelAwait()],
     },
+    server: {
+      headers: crossOriginIsolationHeaders,
+    },
     preview: {
       headers: {
         'Cache-Control': 'public, max-age=600',
+        ...crossOriginIsolationHeaders,
       },
+    },
+    // @huggingface/transformers is large and pulls in onnxruntime-web; skip
+    // dev-server pre-bundling to avoid long startup pauses. The runtime
+    // dynamic import path still works correctly.
+    optimizeDeps: {
+      exclude: ['@huggingface/transformers'],
     },
   };
 });
