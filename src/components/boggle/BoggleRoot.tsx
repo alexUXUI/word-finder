@@ -12,6 +12,8 @@ import { Controls } from './controls/Controls';
 import { WordsPanel } from './controls/WordsPanel';
 import { BoggleBoard } from './board/Board';
 import { SmartBanner } from './intelligence/SmartBanner';
+import { VersionFooter } from './VersionFooter';
+import { installVersionGlobals } from '../../version';
 import { calculateCellWidth, handleFoundWord } from './logic/board';
 import {
   DictionaryCtx,
@@ -115,6 +117,12 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
       const wowAudioFile = '/wow.mp3';
       const audio = new Audio(wowAudioFile);
       audioState.foundWord = audio;
+
+      // Wire version metadata into discoverable surfaces:
+      //   - window.__APP_VERSION__
+      //   - localStorage["word-finder.version"]
+      //   - DevTools console banner
+      installVersionGlobals();
     })
   );
 
@@ -152,6 +160,7 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
       <UserGameStats />
       <BoggleBoard />
       <WordsPanel />
+      <VersionFooter />
     </div>
   );
 });
