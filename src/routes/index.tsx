@@ -6,11 +6,11 @@ import type { ServerData } from '~/components/boggle/logic/server';
 import { handleGet } from '~/components/boggle/logic/server';
 
 export const head: DocumentHead = {
-  title: 'Boggle',
+  title: 'Word Finder',
   meta: [
     {
-      name: 'Boggle Game',
-      content: 'Play Boggle',
+      name: 'description',
+      content: 'Word Finder — find every word hiding in the grid.',
     },
   ],
 };

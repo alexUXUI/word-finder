@@ -1,7 +1,7 @@
 import { Page, Locator, expect } from '@playwright/test';
 
 /**
- * Helpers for driving the Foggle UI from the player's perspective.
+ * Helpers for driving the Word Finder UI from the player's perspective.
  *
  * Why these exist:
  * - The dictionary is fetched from a remote URL inside the worker. We can't

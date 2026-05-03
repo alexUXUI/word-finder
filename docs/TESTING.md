@@ -75,7 +75,7 @@ The Playwright config (`playwright.config.ts`) starts `yarn start` automatically
 
 ### Selectors
 
-All e2e tests pull from `data-testid` hooks — never CSS classes, never text content (except for the `Foggle` title check). Full hook reference is in [`FEATURES.md`](./FEATURES.md). The most useful ones:
+All e2e tests pull from `data-testid` hooks — never CSS classes, never text content (except for the `Word Finder` title check). Full hook reference is in [`FEATURES.md`](./FEATURES.md). The most useful ones:
 
 - `[data-testid="board"]` carries `data-selected-path` (current path as a string), `data-board-size`, `data-is-word-found`.
 - `[data-testid="cell-{i}"]` carries `data-cell-char`, `data-cell-index`, `data-cell-is-in-path`, `data-cell-bg`.

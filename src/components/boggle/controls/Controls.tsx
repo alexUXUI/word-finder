@@ -111,7 +111,7 @@ export const Controls = component$(() => {
           data-testid="app-title"
           class="text-center text-xl text-blue-900 font-medium m-0 py-2"
         >
-          Foggle
+          Word Finder
         </h1>
       </div>
       <div class="glass flex items-center h-[50px] w-full m-auto">

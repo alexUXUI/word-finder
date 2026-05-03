@@ -4,7 +4,7 @@ import { board, cell, goHome, waitForBoardReady } from './helpers';
 test.describe('board rendering', () => {
   test('default 5x5 grid renders with 25 cells', async ({ page }) => {
     await goHome(page);
-    await expect(page.getByTestId('app-title')).toHaveText('Foggle');
+    await expect(page.getByTestId('app-title')).toHaveText('Word Finder');
     await expect(board(page)).toHaveAttribute('data-board-size', '5');
     await expect(page.locator('[data-testid^="cell-"]')).toHaveCount(25);
   });

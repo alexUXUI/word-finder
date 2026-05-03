@@ -1,4 +1,4 @@
-# Foggle — Feature Reference
+# Word Finder — Feature Reference
 
 This document describes the working state of the app from the player's perspective at the time of `feat/test-selectors-and-docs`. It is the source of truth that the e2e suite (`docs/TESTING.md`) verifies. If you change behavior, update this file *and* the matching spec.
 
@@ -10,7 +10,7 @@ Every observable surface here has a stable `data-testid` hook so tests don't dep
 
 When you load `/`, the page is server-rendered with a randomly generated 5×5 board for the user-agent's form factor (350px wide on mobile, 400px on desktop). From top to bottom you see:
 
-1. **Top bar** — `Foggle` title, `Open Controls`, `Reset Board`, and an `Answers: N` count.
+1. **Top bar** — `Word Finder` title, `Open Controls`, `Reset Board`, and an `Answers: N` count.
 2. **Stats panel** — `Level: N` row with a stepped level bar, then a `Progress: x / total - p%` row with a horizontal fill bar.
 3. **Board** — the letter grid.
 4. **Word lists** — `Open Found Words` and `Open Answers` buttons at the bottom that slide up panels.
