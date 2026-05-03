@@ -16,9 +16,7 @@ vi.mock('../../src/components/boggle/logic/confetti', () => ({
 
 import {
   randomBoard,
-  englishVowels,
-  englishConsonants,
-  englishUnpopularConsonants,
+  ENGLISH_LETTER_FREQUENCY,
   russianVowels,
   russianConsonants,
   russianUnpopularConsonants,
@@ -36,21 +34,33 @@ describe('randomBoard(language, size)', () => {
     expect(randomBoard('Russian', size).length).toBe(size * size);
   });
 
-  it('uses only the English language pool when language=English', () => {
-    // Snapshot the pools up-front since randomBoard mutates these arrays in
-    // place via .sort(); we want to compare against the full set of letters
-    // each pool can ever contain, not their post-sort order.
-    const englishPool = new Set([
-      ...englishVowels,
-      ...englishConsonants,
-      ...englishUnpopularConsonants,
-    ]);
+  it('uses only letters from the English frequency table when language=English', () => {
+    const englishPool = new Set(Object.keys(ENGLISH_LETTER_FREQUENCY));
     for (let trial = 0; trial < 20; trial++) {
       const result = randomBoard('English', 5);
       for (const ch of result) {
         expect(englishPool.has(ch), `unexpected English letter: ${ch}`).toBe(true);
       }
     }
+  });
+
+  it('produces variable vowel inventories across calls (the Phase 0 finding)', () => {
+    // The previous algorithm had a static vowel multiset (always 5e/3a/2i,
+    // never o or u). Frequency-weighted sampling should break that.
+    const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
+    const multisets = new Set<string>();
+    let sawO = false;
+    let sawU = false;
+    for (let trial = 0; trial < 30; trial++) {
+      const board = randomBoard('English', 5);
+      const vowelChars = [...board].filter((c) => VOWELS.has(c)).sort().join('');
+      multisets.add(vowelChars);
+      if (board.includes('o')) sawO = true;
+      if (board.includes('u')) sawU = true;
+    }
+    expect(multisets.size).toBeGreaterThan(5);
+    expect(sawO).toBe(true);
+    expect(sawU).toBe(true);
   });
 
   it('uses only the Russian language pool when language=Russian', () => {
@@ -76,11 +86,7 @@ describe('randomBoard(language, size)', () => {
   });
 
   it('falls back to English pool for unknown languages', () => {
-    const englishPool = new Set([
-      ...englishVowels,
-      ...englishConsonants,
-      ...englishUnpopularConsonants,
-    ]);
+    const englishPool = new Set(Object.keys(ENGLISH_LETTER_FREQUENCY));
     const result = randomBoard('Klingon', 4);
     for (const ch of result) {
       expect(englishPool.has(ch)).toBe(true);
