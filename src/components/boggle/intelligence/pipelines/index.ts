@@ -10,6 +10,8 @@ import { p00Deterministic } from './p00-deterministic';
 import { p01SmartRouter } from './p01-smart-router';
 import { p02SlmMutator } from './p02-slm-mutator';
 import { p02bRandomMutator } from './p02b-random-mutator';
+import { p04CriticRerank } from './p04-critic-rerank';
+import { p05ParsedPromptMutator } from './p05-parsed-prompt-mutator';
 
 let initialized = false;
 
@@ -24,6 +26,8 @@ export const initializePipelines = (): void => {
   registerPipeline(p01SmartRouter);
   registerPipeline(p02SlmMutator);
   registerPipeline(p02bRandomMutator);
+  registerPipeline(p04CriticRerank);
+  registerPipeline(p05ParsedPromptMutator);
   // Default champion = p01 (current production behavior). Bench leaderboard
   // promotes a different one when it wins.
   setChampion('p01-smart-router');
@@ -34,4 +38,6 @@ export {
   p01SmartRouter,
   p02SlmMutator,
   p02bRandomMutator,
+  p04CriticRerank,
+  p05ParsedPromptMutator,
 };

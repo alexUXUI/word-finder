@@ -10,6 +10,7 @@ import type { BoardStrategy, BoardStrategyResult } from '../types';
  */
 export const legacyRussianStrategy: BoardStrategy = {
   name: 'legacy-russian',
+  supportedLanguages: [Language.Russian],
   generate({ size }): BoardStrategyResult {
     return {
       board: generateRandomBoard(size, Language.Russian),

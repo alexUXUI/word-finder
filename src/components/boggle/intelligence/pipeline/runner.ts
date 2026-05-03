@@ -22,7 +22,10 @@ import type {
   ScoredBoard,
   ScoredBoardWithCritic,
 } from '../roles/types';
-import { listStrategies, getStrategy } from '../../generation/registry';
+import {
+  listStrategiesForLanguage,
+  getStrategy,
+} from '../../generation/registry';
 import { buildTrie } from '../../logic/trie';
 import { solveWithTrie } from '../../logic/boggle';
 import { scoreBoard, DEFAULT_WEIGHTS } from '../../generation/scorer';
@@ -141,7 +144,16 @@ export const runPipeline = async (
     parserSpan.end();
 
     // Step 1 — StrategyRouter
-    const available = listStrategies();
+    // Only offer strategies that support the goal's language. Without this
+    // an English goal could be routed to `legacy-russian` and produce a
+    // Cyrillic board with 0 player words (we have an English-only
+    // dictionary).
+    const available = listStrategiesForLanguage(parsedGoal.language);
+    if (available.length === 0) {
+      throw new Error(
+        `No strategies registered for language: ${parsedGoal.language}`
+      );
+    }
     cb.onNarrate?.('🤔 Strategy router…');
     const routerSpan = handle.startSpan(`role.${pipeline.roles.strategyRouter.id}`, 'CHAT_MODEL', root);
     const strategyId = await pipeline.roles.strategyRouter.route(parsedGoal, available, ctx);
