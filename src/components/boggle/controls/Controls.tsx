@@ -439,9 +439,8 @@ export const Controls = component$(() => {
                   style="font-size:11px; color:#666; margin-top:2px;"
                 >
                   On first reset, downloads the right SLM for your device
-                  (small on mobile ~110 MB, large on desktop ~786 MB), then
-                  uses it locally. Override with <code>?slmTier=small</code>
-                  {' '}or <code>?slmTier=large</code>.
+                  based on your browser's User-Agent (small on mobile ~220 MB,
+                  large on desktop ~786 MB), then uses it locally.
                 </span>
               )}
               {smart.slmTier && smart.modelStatus === 'ready' && (

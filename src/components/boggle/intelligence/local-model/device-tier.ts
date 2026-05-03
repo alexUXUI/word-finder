@@ -5,14 +5,13 @@
  * we try to load Qwen2.5-0.5B (~786 MB). iOS Safari kills tabs at ~1.5 GB
  * resident, so we need a smaller model on mobile/low-end devices.
  *
- * Three signals, in priority order:
- *   1. URL query (?slmTier=small|large) — testing override
- *   2. navigator.deviceMemory (Chromium-only; rounded to powers of 2 GB)
- *   3. user-agent heuristic (last resort; iOS / Android → small)
+ * Detection: User-Agent only. Mobile UA → small tier; desktop UA → large.
  *
  * False-negative cost (treating a powerful device as small): mediocre
  * explanations. False-positive cost (treating a low-end device as
- * powerful): tab crash. We default to safe.
+ * powerful): tab crash. UA-based detection defaults to safe — every
+ * phone / tablet gets the small model regardless of how powerful it
+ * thinks it is, because we'd rather sacrifice some quality than crash.
  */
 
 export interface SlmTier {
@@ -44,36 +43,14 @@ const TIER_SMALL: Omit<SlmTier, 'reason'> = {
 };
 
 /**
- * Pull deviceMemory if present. Chromium-only; Safari and Firefox return undefined.
- * Documented values are rounded to {0.25, 0.5, 1, 2, 4, 8} GB.
- */
-const readDeviceMemory = (): number | undefined => {
-  if (typeof navigator === 'undefined') return undefined;
-  const dm = (navigator as unknown as { deviceMemory?: number }).deviceMemory;
-  return typeof dm === 'number' ? dm : undefined;
-};
-
-const readQuery = (): string | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const v = params.get('slmTier');
-    return v === 'small' || v === 'large' ? v : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-/**
- * UA heuristic — coarse but reliable for "is this a phone/tablet". Used
- * only when navigator.deviceMemory is unavailable (Safari, Firefox).
+ * Mobile-UA detection. Catches iPhone, iPad, iPod, Android phones+tablets,
+ * and any browser that self-identifies as Mobile. Also handles iPadOS 13+
+ * which spoofs as Macintosh — touch-point count gives it away.
  */
 const looksLikeMobile = (ua: string): boolean => {
-  // iPhone, iPad, iPod, Android phones+tablets, mobile browsers.
   if (/iPhone|iPad|iPod/i.test(ua)) return true;
   if (/Android/i.test(ua)) return true;
   if (/Mobile/i.test(ua)) return true;
-  // iPad on iPadOS 13+ reports as Macintosh; touch points distinguish it.
   if (
     /Macintosh/i.test(ua) &&
     typeof navigator !== 'undefined' &&
@@ -85,37 +62,27 @@ const looksLikeMobile = (ua: string): boolean => {
   return false;
 };
 
+/**
+ * Truncated UA string for the chosen-tier `reason` field. Useful in MLflow
+ * traces and DevTools to confirm what was detected without dumping the
+ * whole UA into the SmartBanner.
+ */
+const uaSummary = (ua: string): string => {
+  const m = ua.match(
+    /(iPhone|iPad|iPod|Android|Mobile|Macintosh|Windows|Linux|CrOS)/i
+  );
+  return m ? m[1] : ua.slice(0, 32);
+};
+
 export const selectSlmTier = (): SlmTier => {
-  // 1. Manual override.
-  const overridden = readQuery();
-  if (overridden === 'small') {
-    return { ...TIER_SMALL, reason: 'override:?slmTier=small' };
-  }
-  if (overridden === 'large') {
-    return { ...TIER_LARGE, reason: 'override:?slmTier=large' };
-  }
-
-  // 2. deviceMemory (Chromium). Most accurate when present.
-  const dm = readDeviceMemory();
-  if (typeof dm === 'number') {
-    if (dm < 4) {
-      return {
-        ...TIER_SMALL,
-        reason: `deviceMemory=${dm}GB < 4`,
-      };
-    }
-    return { ...TIER_LARGE, reason: `deviceMemory=${dm}GB ≥ 4` };
-  }
-
-  // 3. UA heuristic (Safari, Firefox).
   if (typeof navigator === 'undefined') {
+    // SSR — return a sensible default. The actual decision happens on the
+    // client when ensureSmartLoaded() runs after hydration.
     return { ...TIER_LARGE, reason: 'no navigator (SSR)' };
   }
-  if (looksLikeMobile(navigator.userAgent)) {
-    return {
-      ...TIER_SMALL,
-      reason: 'UA-mobile (no deviceMemory available)',
-    };
+  const ua = navigator.userAgent;
+  if (looksLikeMobile(ua)) {
+    return { ...TIER_SMALL, reason: `UA: ${uaSummary(ua)}` };
   }
-  return { ...TIER_LARGE, reason: 'UA-desktop' };
+  return { ...TIER_LARGE, reason: `UA: ${uaSummary(ua)}` };
 };
