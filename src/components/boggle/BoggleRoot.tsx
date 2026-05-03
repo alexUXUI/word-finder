@@ -43,11 +43,12 @@ export interface BoggleProps {
     boardSize: number;
     language: LanguageType;
     minCharLength: number;
+    minWordsPerBoard: number;
   };
 }
 
 export const BoogleRoot = component$(({ data }: BoggleProps) => {
-  const { board, boardWidth, boardSize, language, minCharLength } = data;
+  const { board, boardWidth, boardSize, language, minCharLength, minWordsPerBoard } = data;
 
   const dictionaryState = useStore<DictionaryState>({ dictionary: [] });
 
@@ -63,6 +64,7 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
     selectedChars: [],
     language: language,
     minCharLength: minCharLength ?? 0,
+    minWordsPerBoard: minWordsPerBoard ?? 150,
     currentLevel: 1,
     wordsUntilNextLevel: 1,
     levelStepSize: 1,

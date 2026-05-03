@@ -224,7 +224,7 @@ export const Controls = component$(() => {
             minWordLength: gameState.minCharLength,
             style: 'long-word-heavy',
             difficulty: 'medium',
-            minPlayerRelevantWords: 150,
+            minPlayerRelevantWords: gameState.minWordsPerBoard,
             maxAttempts: 3,
           },
           dict
@@ -317,6 +317,14 @@ export const Controls = component$(() => {
     }
   );
 
+  const handleChangeMinWordsPerBoard = $(
+    (e: QwikChangeEvent<HTMLInputElement>) => {
+      const v = e.target.valueAsNumber;
+      // Defensive: clamp to a sane range. Negative or NaN means "no floor".
+      gameState.minWordsPerBoard = Number.isFinite(v) && v >= 0 ? v : 0;
+    }
+  );
+
   const answersLength = answersState.answers.filter(
     (word) => word.length >= gameState.minCharLength
   ).length;
@@ -405,6 +413,25 @@ export const Controls = component$(() => {
                 onChange$={handleChangeMinCharLength}
                 value={gameState.minCharLength}
                 class="pl-2 rounded-md w-[70px] h-[40px] border-2 border-blue-900"
+              />
+            </div>
+            <div class="flex flex-col my-[10px]">
+              <label
+                for="min-words-per-board"
+                class="text-[14px]"
+                title="Smart Mode hard floor: minimum number of player-relevant words a generated board must contain. Smart retries up to 3× to satisfy."
+              >
+                Min Words
+              </label>
+              <input
+                id="min-words-per-board"
+                data-testid="min-words-input"
+                type="number"
+                min="0"
+                step="10"
+                onChange$={handleChangeMinWordsPerBoard}
+                value={gameState.minWordsPerBoard}
+                class="pl-2 rounded-md w-[80px] h-[40px] border-2 border-blue-900"
               />
             </div>
             <div class="flex flex-col my-[10px]">

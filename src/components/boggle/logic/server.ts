@@ -9,6 +9,7 @@ export interface ServerData {
   boardSize: number;
   language: LanguageType;
   minCharLength: number;
+  minWordsPerBoard: number;
 }
 
 type ReqArgs = {
@@ -21,12 +22,16 @@ export const gameConfig = {
   // Default to 5+ letter words — that's the gameplay we optimize for.
   // Override per-request via ?min=N.
   minCharLength: 5,
+  // Smart Mode hard floor: never accept a board with fewer player-relevant
+  // words than this. Override via ?minWords=N. Non-smart Reset ignores it.
+  minWordsPerBoard: 150,
   language: Language.English,
 };
 
 export const handleGet = ({ url, request }: ReqArgs): ServerData => {
   let language = gameConfig.language;
   let minCharLength = gameConfig.minCharLength;
+  let minWordsPerBoard = gameConfig.minWordsPerBoard;
   let boardSize = gameConfig.boardSize;
 
   let board = randomBoard(language, boardSize).split('');
@@ -50,12 +55,20 @@ export const handleGet = ({ url, request }: ReqArgs): ServerData => {
     minCharLength = parseInt(paramsObject.min);
   }
 
+  if (paramsObject.minWords) {
+    const parsed = parseInt(paramsObject.minWords);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      minWordsPerBoard = parsed;
+    }
+  }
+
   return {
     board,
     boardWidth,
     boardSize,
     language,
     minCharLength,
+    minWordsPerBoard,
   };
 };
 

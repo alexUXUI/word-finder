@@ -49,6 +49,13 @@ export interface GameState {
   selectedChars: { index: number; char: string }[];
   language: LanguageType;
   minCharLength: number;
+  /**
+   * Hard floor on player-relevant words (≥ minCharLength) per generated
+   * board. Smart Mode retries up to 3× to satisfy this; Reset will only
+   * accept a board with at least this many words. Non-smart Reset
+   * ignores it (single-shot has no retry budget).
+   */
+  minWordsPerBoard: number;
   currentLevel: number;
   wordsUntilNextLevel: number;
   levelStepSize: number;
