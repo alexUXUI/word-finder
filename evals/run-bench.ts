@@ -26,6 +26,8 @@ import { initializePipelines } from '../src/components/boggle/intelligence/pipel
 import { pipelineHash } from '../src/components/boggle/intelligence/pipeline/types';
 import { NoopTracer } from '../src/components/boggle/generation/trace';
 import { makeMockProvider } from '../src/components/boggle/intelligence/local-model/mock';
+import { setProviderForId } from '../src/components/boggle/intelligence/local-model/factory';
+import { SLM_REGISTRY } from '../src/components/boggle/intelligence/local-model/device-tier';
 import { Language } from '../src/components/boggle/models';
 
 interface GoalConfig {
@@ -108,6 +110,19 @@ const runOne = async (
   const useReal = process.env.BENCH_USE_REAL_MODEL === '1';
   const model = useReal ? null : makeMockProvider({ id: 'mock-bench' });
   if (model) await model.load();
+
+  if (!useReal) {
+    // Pre-register mocks for every SLM id so pipelines like p06-cascade
+    // and p07-self-consistent (which call getProviderForId directly to
+    // walk a model ladder) don't try to dynamic-import Transformers.js
+    // in Node. Each mock is independent so role-level model overrides
+    // still produce different `model_id` attributes in spans.
+    for (const entry of SLM_REGISTRY) {
+      const m = makeMockProvider({ id: `mock:${entry.id}` });
+      await m.load();
+      setProviderForId(entry.id, m);
+    }
+  }
 
   const boards: unknown[] = [];
   const t0 = Date.now();

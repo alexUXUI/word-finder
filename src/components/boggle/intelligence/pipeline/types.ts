@@ -43,6 +43,35 @@ export interface PipelineRoles {
   narrator: NarratorRole;
 }
 
+/**
+ * Per-role model override. Pipelines that compose different models per
+ * role (the "compositions of different models" target in
+ * `AI_ENGINEERING.md` §4) populate this. The runner resolves each entry
+ * via `getProviderForId(id)` and feeds the right provider to that role's
+ * `RoleContext`.
+ *
+ * Roles whose key is absent fall back to the default `model` argument
+ * passed into `runPipeline`. Roles that don't need a model (deterministic
+ * implementations) ignore the entry.
+ *
+ * Example:
+ *   roleModels: {
+ *     'prompt-parser': 'smollm2-135m',     // tiny, fast NL→struct
+ *     'mutator': 'qwen2.5-0.5b',           // mid-size, strong reasoner
+ *     'critic': 'cloudflare-server',       // upstream, frees device
+ *     'narrator': 'smollm2-360m',          // tiny is fine for one sentence
+ *   }
+ */
+export type RoleModelOverrides = Partial<{
+  'prompt-parser': string;
+  'strategy-router': string;
+  'candidate-generator': string;
+  mutator: string;
+  critic: string;
+  aggregator: string;
+  narrator: string;
+}>;
+
 export interface Pipeline {
   /** Stable id; used as the eval row key. */
   readonly id: string;
@@ -56,11 +85,20 @@ export interface Pipeline {
   readonly mutationLoop?: MutationLoopConfig;
   /** Pipeline-level params for the strategy router (style→strategy table, etc). */
   readonly routerParams?: Readonly<Record<string, unknown>>;
+  /**
+   * Per-role model overrides. When set, the runner resolves the named SLM
+   * via `getProviderForId(id)` (lazy + cached) and feeds it into that
+   * role's `RoleContext`. Roles not listed here fall back to the default
+   * `model` argument passed into `runPipeline`.
+   */
+  readonly roleModels?: RoleModelOverrides;
 }
 
 /**
  * Stable hash of a pipeline's role assignment. Used as the join key for
- * eval results so we know whether two runs are comparable.
+ * eval results so we know whether two runs are comparable. Includes the
+ * roleModels assignment so a same-roles-different-models composition
+ * gets a different hash.
  */
 export const pipelineHash = (p: Pipeline): string => {
   const sig = JSON.stringify({
@@ -76,6 +114,7 @@ export const pipelineHash = (p: Pipeline): string => {
       narrator: p.roles.narrator.id,
     },
     mutationLoop: p.mutationLoop ?? null,
+    roleModels: p.roleModels ?? null,
   });
   // Tiny djb2 — good enough for log lines / dedupe in the leaderboard.
   let h = 5381;

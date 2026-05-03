@@ -16,3 +16,4 @@ export {
   SLM_REGISTRY,
 } from './device-tier';
 export type { SlmTier, SlmModel, SlmSelection, SlmRecommendation } from './device-tier';
+export { getProviderForId, setProviderForId } from './factory';

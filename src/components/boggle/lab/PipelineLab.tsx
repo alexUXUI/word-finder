@@ -1,4 +1,4 @@
-import { $, component$, useContext, useTask$, useSignal } from '@builder.io/qwik';
+import { $, component$, useContext, useBrowserVisibleTask$, useSignal } from '@builder.io/qwik';
 import {
   BoardCtx,
   BuilderCtx,
@@ -55,9 +55,11 @@ export const PipelineLab = component$(() => {
   // Local override for the prompt that gets threaded into pipeline runs.
   const prompt = useSignal<string>('');
 
-  // Hydrate state on mount.
-  useTask$(async () => {
-    if (typeof window === 'undefined') return;
+  // Hydrate state on mount. useBrowserVisibleTask$ runs in the browser only,
+  // unlike useTask$ which fires server-side during SSR and not on resume.
+  // Dynamic imports of intelligence/pipelines/* must happen client-side
+  // because they pull in noSerialize'd state.
+  useBrowserVisibleTask$(async () => {
     builder.savedBoards = (loadSavedBoards() as unknown as typeof builder.savedBoards) ?? [];
     prompt.value = loadPrompt();
     cardScores.value = loadCardScores();

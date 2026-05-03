@@ -14,7 +14,7 @@
  * implementations the pipeline picked — that's the point.
  */
 
-import type { Pipeline } from './types';
+import type { Pipeline, RoleModelOverrides } from './types';
 import type {
   BoardGenerationGoal,
   PipelineResult,
@@ -22,6 +22,7 @@ import type {
   ScoredBoard,
   ScoredBoardWithCritic,
 } from '../roles/types';
+import { getProviderForId } from '../local-model/factory';
 import {
   listStrategiesForLanguage,
   getStrategy,
@@ -118,7 +119,7 @@ export const runPipeline = async (
     ...(input.weightsForStyle?.(goalIn.style) ?? {}),
   };
 
-  const ctx: RoleContext = {
+  const baseCtx: RoleContext = {
     trace: input.tracer,
     parentSpanId: undefined,
     model: input.model,
@@ -130,6 +131,26 @@ export const runPipeline = async (
     scoreWeights: baseWeights,
   };
 
+  /**
+   * Resolve the model for a given role. If the pipeline has a per-role
+   * override, instantiate (or fetch from cache) the named provider and
+   * lazy-load it. Otherwise return the default `input.model`.
+   */
+  const ctxFor = async (
+    roleKind: keyof RoleModelOverrides
+  ): Promise<RoleContext> => {
+    const overrideId = pipeline.roleModels?.[roleKind];
+    if (!overrideId) return baseCtx;
+    const provider = getProviderForId(overrideId);
+    if (!provider.isReady) {
+      cb.onNarrate?.(`⏳ Loading ${overrideId} for role "${roleKind}"…`);
+      await provider.load();
+    }
+    return { ...baseCtx, model: provider };
+  };
+
+  // (All call sites use ctxFor() per role — there's no shared ctx.)
+
   let modelCalls = 0;
   let candidatesEvaluated = 0;
   let mutationsApplied = 0;
@@ -138,9 +159,11 @@ export const runPipeline = async (
     // Step 0 — PromptParser
     cb.onNarrate?.('🎯 Pipeline: ' + pipeline.id);
     const parserSpan = handle.startSpan(`role.${pipeline.roles.promptParser.id}`, 'CHAIN', root);
-    const parsedGoal = await pipeline.roles.promptParser.parse(goalIn, ctx);
+    const parserCtx = await ctxFor('prompt-parser');
+    const parsedGoal = await pipeline.roles.promptParser.parse(goalIn, parserCtx);
     parserSpan.setAttribute('role', 'prompt-parser');
     parserSpan.setAttribute('impl', pipeline.roles.promptParser.id);
+    parserSpan.setAttribute('model_id', parserCtx.model?.id ?? 'none');
     parserSpan.end();
 
     // Step 1 — StrategyRouter
@@ -156,7 +179,8 @@ export const runPipeline = async (
     }
     cb.onNarrate?.('🤔 Strategy router…');
     const routerSpan = handle.startSpan(`role.${pipeline.roles.strategyRouter.id}`, 'CHAT_MODEL', root);
-    const strategyId = await pipeline.roles.strategyRouter.route(parsedGoal, available, ctx);
+    const routerCtx = await ctxFor('strategy-router');
+    const strategyId = await pipeline.roles.strategyRouter.route(parsedGoal, available, routerCtx);
     if (pipeline.roles.strategyRouter.id !== 'rule-based:frequency-weighted' &&
         pipeline.roles.strategyRouter.id.startsWith('slm')) {
       modelCalls++;
@@ -169,16 +193,18 @@ export const runPipeline = async (
     routerSpan.setAttribute('role', 'strategy-router');
     routerSpan.setAttribute('impl', pipeline.roles.strategyRouter.id);
     routerSpan.setAttribute('chosen', strategyId);
+    routerSpan.setAttribute('model_id', routerCtx.model?.id ?? 'none');
     routerSpan.end();
     cb.onNarrate?.(`💡 Strategy: ${strategyId}`);
 
     // Step 2 — CandidateGenerator
     cb.onNarrate?.('🔍 Generating candidates…');
     const genSpan = handle.startSpan(`role.${pipeline.roles.candidateGenerator.id}`, 'TOOL', root);
+    const genCtx = await ctxFor('candidate-generator');
     let candidates = await pipeline.roles.candidateGenerator.generate({
       goal: parsedGoal,
       strategyId,
-      ctx,
+      ctx: genCtx,
     });
     candidatesEvaluated += candidates.length;
     genSpan.setAttribute('role', 'candidate-generator');
@@ -201,6 +227,8 @@ export const runPipeline = async (
       mutSpan.setAttribute('impl', mut.id);
       mutSpan.setAttribute('iterations', cfg.iterations);
       cb.onNarrate?.(`🧬 Hill-climb (${mut.id}, ${cfg.iterations} iters × ${cfg.swapsPerIteration} swaps)…`);
+      const mutCtx = await ctxFor('mutator');
+      mutSpan.setAttribute('model_id', mutCtx.model?.id ?? 'none');
       for (let iter = 0; iter < cfg.iterations; iter++) {
         if (input.signal?.aborted) break;
         const iterSpan = handle.startSpan(`mutator.iter.${iter}`, 'TOOL', mutSpan);
@@ -208,7 +236,7 @@ export const runPipeline = async (
           board: current,
           goal: parsedGoal,
           k: cfg.swapsPerIteration,
-          ctx,
+          ctx: mutCtx,
         });
         if (mut.id.startsWith('slm')) modelCalls++;
         iterSpan.setAttribute('proposed', swaps.length);
@@ -252,8 +280,10 @@ export const runPipeline = async (
       const critSpan = handle.startSpan(`role.${critic.id}`, 'EVALUATION', root);
       critSpan.setAttribute('role', 'critic');
       critSpan.setAttribute('impl', critic.id);
+      const critCtx = await ctxFor('critic');
+      critSpan.setAttribute('model_id', critCtx.model?.id ?? 'none');
       const ratings = await Promise.all(
-        candidates.map((c) => critic.rate({ board: c, goal: parsedGoal, ctx }))
+        candidates.map((c) => critic.rate({ board: c, goal: parsedGoal, ctx: critCtx }))
       );
       if (critic.id.startsWith('slm')) modelCalls += candidates.length;
       scored = candidates.map((c, i) => ({ ...c, critic: ratings[i] }));
@@ -264,10 +294,11 @@ export const runPipeline = async (
 
     // Step 5 — Aggregator
     const aggSpan = handle.startSpan(`role.${pipeline.roles.aggregator.id}`, 'CHAIN', root);
+    const aggCtx = await ctxFor('aggregator');
     const chosen = await pipeline.roles.aggregator.pick({
       candidates: scored,
       goal: parsedGoal,
-      ctx,
+      ctx: aggCtx,
     });
     aggSpan.setAttribute('role', 'aggregator');
     aggSpan.setAttribute('impl', pipeline.roles.aggregator.id);
@@ -277,10 +308,12 @@ export const runPipeline = async (
     // Step 6 — Narrator
     cb.onNarrate?.('💬 Narrating…');
     const narrSpan = handle.startSpan(`role.${pipeline.roles.narrator.id}`, 'CHAT_MODEL', root);
+    const narrCtx = await ctxFor('narrator');
+    narrSpan.setAttribute('model_id', narrCtx.model?.id ?? 'none');
     const explanation = await pipeline.roles.narrator.narrate({
       chosen,
       goal: parsedGoal,
-      ctx,
+      ctx: narrCtx,
     });
     if (pipeline.roles.narrator.id.startsWith('slm')) modelCalls++;
     narrSpan.setAttribute('role', 'narrator');

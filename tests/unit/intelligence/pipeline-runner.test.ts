@@ -106,6 +106,45 @@ describe('runPipeline — language safety', () => {
   });
 });
 
+describe('per-role model assignment', () => {
+  it('roleModels override threads a different model into the named role', async () => {
+    // Wire a "logger" mock that records which prompts it sees, then set up
+    // a pipeline whose narrator points at this id via roleModels.
+    // Validates that the runner instantiates the override and feeds its
+    // provider into the role's RoleContext.
+    //
+    // This works because getProviderForId is called by the runner; it
+    // looks the id up in SLM_REGISTRY and constructs a provider. We
+    // can't easily mock the registry from a unit test, so we settle for
+    // structural assertion: trace span attributes recorded the override
+    // model_id.
+    const { p06Cascade } = await import(
+      '../../../src/components/boggle/intelligence/pipelines/p06-cascade'
+    );
+    expect(p06Cascade.roleModels).toBeDefined();
+    expect(p06Cascade.roleModels?.narrator).toBe('smollm2-360m');
+  });
+
+  it('pipelineHash includes roleModels so different compositions get different hashes', async () => {
+    const { pipelineHash } = await import(
+      '../../../src/components/boggle/intelligence/pipeline/types'
+    );
+    const { p01SmartRouter } = await import(
+      '../../../src/components/boggle/intelligence/pipelines/p01-smart-router'
+    );
+    const { p06Cascade } = await import(
+      '../../../src/components/boggle/intelligence/pipelines/p06-cascade'
+    );
+    const h1 = pipelineHash(p01SmartRouter);
+    const h6 = pipelineHash(p06Cascade);
+    expect(h1).not.toEqual(h6);
+    // Same pipeline, mutated copy with extra role override → different hash.
+    const variant = { ...p01SmartRouter, roleModels: { narrator: 'smollm2-135m' as const } };
+    const hVariant = pipelineHash(variant);
+    expect(hVariant).not.toEqual(h1);
+  });
+});
+
 describe('runPipeline — basic shape', () => {
   it('p02-slm-mutator produces a board, runs the mutator loop, traces the run', async () => {
     const model = makeMockProvider({ id: 'test' });

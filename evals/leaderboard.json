@@ -1,10 +1,15 @@
 {
-  "generatedAt": "2026-05-03T23:20:08.763Z",
+  "generatedAt": "2026-05-03T23:40:30.058Z",
   "pipelines": [
     "p00-deterministic",
     "p01-smart-router",
     "p02-slm-mutator",
-    "p02b-random-mutator"
+    "p02b-random-mutator",
+    "p03-evolutionary",
+    "p04-critic-rerank",
+    "p05-parsed-prompt-mutator",
+    "p06-cascade",
+    "p07-self-consistent"
   ],
   "goals": [
     "default-balanced"
@@ -12,39 +17,84 @@
   "aggregate": [
     {
       "pipeline": "p00-deterministic",
-      "runs": 5,
+      "runs": 3,
       "goalsCovered": 1,
-      "playerRelevantWords.mean": 181.8,
-      "finalScore.mean": 315.5214924805482,
-      "meanElapsedMs": 456.95590039999996,
+      "playerRelevantWords.mean": 147,
+      "finalScore.mean": 273.10659988302626,
+      "meanElapsedMs": 455.09669133333335,
       "modelTokens.mean": 0
     },
     {
       "pipeline": "p01-smart-router",
-      "runs": 5,
+      "runs": 3,
       "goalsCovered": 1,
-      "playerRelevantWords.mean": 183.2,
-      "finalScore.mean": 317.7887998720345,
-      "meanElapsedMs": 440.2418992000001,
+      "playerRelevantWords.mean": 178,
+      "finalScore.mean": 311.22377464169057,
+      "meanElapsedMs": 493.25993899999986,
       "modelTokens.mean": 150
     },
     {
       "pipeline": "p02-slm-mutator",
-      "runs": 5,
+      "runs": 3,
       "goalsCovered": 1,
-      "playerRelevantWords.mean": 185.8,
-      "finalScore.mean": 315.68483435481164,
-      "meanElapsedMs": 639.4467413999998,
+      "playerRelevantWords.mean": 160.66666666666666,
+      "finalScore.mean": 287.7183018572343,
+      "meanElapsedMs": 620.163383,
       "modelTokens.mean": 450
     },
     {
       "pipeline": "p02b-random-mutator",
-      "runs": 5,
+      "runs": 3,
       "goalsCovered": 1,
-      "playerRelevantWords.mean": 279.4,
-      "finalScore.mean": 418.2349212038962,
-      "meanElapsedMs": 604.1173444,
+      "playerRelevantWords.mean": 282.6666666666667,
+      "finalScore.mean": 426.13105562513823,
+      "meanElapsedMs": 548.9786986666668,
       "modelTokens.mean": 0
+    },
+    {
+      "pipeline": "p03-evolutionary",
+      "runs": 3,
+      "goalsCovered": 1,
+      "playerRelevantWords.mean": 204.66666666666666,
+      "finalScore.mean": 332.87985678185663,
+      "meanElapsedMs": 1190.2378083333335,
+      "modelTokens.mean": 50
+    },
+    {
+      "pipeline": "p04-critic-rerank",
+      "runs": 3,
+      "goalsCovered": 1,
+      "playerRelevantWords.mean": 134.66666666666666,
+      "finalScore.mean": 264.4448533762457,
+      "meanElapsedMs": 287.04806766666724,
+      "modelTokens.mean": 550
+    },
+    {
+      "pipeline": "p05-parsed-prompt-mutator",
+      "runs": 3,
+      "goalsCovered": 1,
+      "playerRelevantWords.mean": 169.66666666666666,
+      "finalScore.mean": 306.6381288441159,
+      "meanElapsedMs": 728.4900199999998,
+      "modelTokens.mean": 550
+    },
+    {
+      "pipeline": "p06-cascade",
+      "runs": 3,
+      "goalsCovered": 1,
+      "playerRelevantWords.mean": 175.33333333333334,
+      "finalScore.mean": 313.2732672260725,
+      "meanElapsedMs": 494.24095166666666,
+      "modelTokens.mean": 50
+    },
+    {
+      "pipeline": "p07-self-consistent",
+      "runs": 3,
+      "goalsCovered": 1,
+      "playerRelevantWords.mean": 164.33333333333334,
+      "finalScore.mean": 304.99308483675355,
+      "meanElapsedMs": 454.43242433333336,
+      "modelTokens.mean": 50
     }
   ],
   "pairwise": [
@@ -53,25 +103,25 @@
       "challenger": "p01-smart-router",
       "goal": "default-balanced",
       "metric": "playerRelevantWords",
-      "delta": 1.4,
+      "delta": 31,
       "ci95": [
-        -12,
-        15.2
+        8,
+        62
       ],
-      "p": 0.875,
-      "significant": false
+      "p": 0,
+      "significant": true
     },
     {
       "champion": "p00-deterministic",
       "challenger": "p02-slm-mutator",
       "goal": "default-balanced",
       "metric": "playerRelevantWords",
-      "delta": 4,
+      "delta": 13.666666666666666,
       "ci95": [
-        -49.6,
-        59.2
+        -44,
+        47
       ],
-      "p": 0.9046,
+      "p": 0.5174,
       "significant": false
     },
     {
@@ -79,64 +129,194 @@
       "challenger": "p02b-random-mutator",
       "goal": "default-balanced",
       "metric": "playerRelevantWords",
-      "delta": 97.6,
+      "delta": 135.66666666666666,
       "ci95": [
-        50,
-        159.4
+        84,
+        236
       ],
       "p": 0,
       "significant": true
+    },
+    {
+      "champion": "p00-deterministic",
+      "challenger": "p03-evolutionary",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 57.666666666666664,
+      "ci95": [
+        49,
+        71
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p00-deterministic",
+      "challenger": "p04-critic-rerank",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -12.333333333333334,
+      "ci95": [
+        -66,
+        32
+      ],
+      "p": 0.5278,
+      "significant": false
+    },
+    {
+      "champion": "p00-deterministic",
+      "challenger": "p05-parsed-prompt-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 22.666666666666668,
+      "ci95": [
+        -1,
+        37
+      ],
+      "p": 0.072,
+      "significant": false
+    },
+    {
+      "champion": "p00-deterministic",
+      "challenger": "p06-cascade",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 28.333333333333332,
+      "ci95": [
+        8,
+        52
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p00-deterministic",
+      "challenger": "p07-self-consistent",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 17.333333333333332,
+      "ci95": [
+        -7,
+        58
+      ],
+      "p": 0.5352,
+      "significant": false
     },
     {
       "champion": "p01-smart-router",
       "challenger": "p00-deterministic",
       "goal": "default-balanced",
       "metric": "playerRelevantWords",
-      "delta": -1.4,
-      "ci95": [
-        -15.2,
-        12
-      ],
-      "p": 0.8866,
-      "significant": false
-    },
-    {
-      "champion": "p01-smart-router",
-      "challenger": "p02-slm-mutator",
-      "goal": "default-balanced",
-      "metric": "playerRelevantWords",
-      "delta": 2.6,
-      "ci95": [
-        -42.6,
-        59.4
-      ],
-      "p": 0.9664,
-      "significant": false
-    },
-    {
-      "champion": "p01-smart-router",
-      "challenger": "p02b-random-mutator",
-      "goal": "default-balanced",
-      "metric": "playerRelevantWords",
-      "delta": 96.2,
-      "ci95": [
-        56.2,
-        146.2
-      ],
-      "p": 0,
-      "significant": true
-    },
-    {
-      "champion": "p02-slm-mutator",
-      "challenger": "p00-deterministic",
-      "goal": "default-balanced",
-      "metric": "playerRelevantWords",
-      "delta": -4,
+      "delta": -31,
       "ci95": [
         -62,
-        44.2
+        -8
       ],
-      "p": 0.9146,
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p01-smart-router",
+      "challenger": "p02-slm-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -17.333333333333332,
+      "ci95": [
+        -67,
+        30
+      ],
+      "p": 0.5256,
+      "significant": false
+    },
+    {
+      "champion": "p01-smart-router",
+      "challenger": "p02b-random-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 104.66666666666667,
+      "ci95": [
+        64,
+        174
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p01-smart-router",
+      "challenger": "p03-evolutionary",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 26.666666666666668,
+      "ci95": [
+        9,
+        41
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p01-smart-router",
+      "challenger": "p04-critic-rerank",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -43.333333333333336,
+      "ci95": [
+        -89,
+        -11
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p01-smart-router",
+      "challenger": "p05-parsed-prompt-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -8.333333333333334,
+      "ci95": [
+        -25,
+        24
+      ],
+      "p": 0.5402,
+      "significant": false
+    },
+    {
+      "champion": "p01-smart-router",
+      "challenger": "p06-cascade",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -2.6666666666666665,
+      "ci95": [
+        -15,
+        17
+      ],
+      "p": 0.5152,
+      "significant": false
+    },
+    {
+      "champion": "p01-smart-router",
+      "challenger": "p07-self-consistent",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -13.666666666666666,
+      "ci95": [
+        -22,
+        -4
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p02-slm-mutator",
+      "challenger": "p00-deterministic",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -13.666666666666666,
+      "ci95": [
+        -47,
+        44
+      ],
+      "p": 0.5062,
       "significant": false
     },
     {
@@ -144,12 +324,12 @@
       "challenger": "p01-smart-router",
       "goal": "default-balanced",
       "metric": "playerRelevantWords",
-      "delta": -2.6,
+      "delta": 17.333333333333332,
       "ci95": [
-        -59.4,
-        42.6
+        -30,
+        67
       ],
-      "p": 0.9644,
+      "p": 0.514,
       "significant": false
     },
     {
@@ -157,23 +337,88 @@
       "challenger": "p02b-random-mutator",
       "goal": "default-balanced",
       "metric": "playerRelevantWords",
-      "delta": 93.6,
+      "delta": 122,
       "ci95": [
-        38.2,
-        158.6
+        46,
+        189
       ],
       "p": 0,
       "significant": true
+    },
+    {
+      "champion": "p02-slm-mutator",
+      "challenger": "p03-evolutionary",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 44,
+      "ci95": [
+        11,
+        97
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p02-slm-mutator",
+      "challenger": "p04-critic-rerank",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -26,
+      "ci95": [
+        -41,
+        -15
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p02-slm-mutator",
+      "challenger": "p05-parsed-prompt-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 9,
+      "ci95": [
+        -10,
+        43
+      ],
+      "p": 0.6088,
+      "significant": false
+    },
+    {
+      "champion": "p02-slm-mutator",
+      "challenger": "p06-cascade",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 14.666666666666666,
+      "ci95": [
+        -13,
+        52
+      ],
+      "p": 0.5124,
+      "significant": false
+    },
+    {
+      "champion": "p02-slm-mutator",
+      "challenger": "p07-self-consistent",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 3.6666666666666665,
+      "ci95": [
+        -45,
+        45
+      ],
+      "p": 0.765,
+      "significant": false
     },
     {
       "champion": "p02b-random-mutator",
       "challenger": "p00-deterministic",
       "goal": "default-balanced",
       "metric": "playerRelevantWords",
-      "delta": -97.6,
+      "delta": -135.66666666666666,
       "ci95": [
-        -159.4,
-        -50
+        -236,
+        -84
       ],
       "p": 0,
       "significant": true
@@ -183,10 +428,10 @@
       "challenger": "p01-smart-router",
       "goal": "default-balanced",
       "metric": "playerRelevantWords",
-      "delta": -96.2,
+      "delta": -104.66666666666667,
       "ci95": [
-        -144.2,
-        -56.2
+        -174,
+        -64
       ],
       "p": 0,
       "significant": true
@@ -196,38 +441,653 @@
       "challenger": "p02-slm-mutator",
       "goal": "default-balanced",
       "metric": "playerRelevantWords",
-      "delta": -93.6,
+      "delta": -122,
       "ci95": [
-        -158.6,
-        -38.2
+        -189,
+        -46
       ],
       "p": 0,
       "significant": true
+    },
+    {
+      "champion": "p02b-random-mutator",
+      "challenger": "p03-evolutionary",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -78,
+      "ci95": [
+        -165,
+        -34
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p02b-random-mutator",
+      "challenger": "p04-critic-rerank",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -148,
+      "ci95": [
+        -204,
+        -87
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p02b-random-mutator",
+      "challenger": "p05-parsed-prompt-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -113,
+      "ci95": [
+        -199,
+        -52
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p02b-random-mutator",
+      "challenger": "p06-cascade",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -107.33333333333333,
+      "ci95": [
+        -184,
+        -59
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p02b-random-mutator",
+      "challenger": "p07-self-consistent",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -118.33333333333333,
+      "ci95": [
+        -178,
+        -86
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p03-evolutionary",
+      "challenger": "p00-deterministic",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -57.666666666666664,
+      "ci95": [
+        -71,
+        -49
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p03-evolutionary",
+      "challenger": "p01-smart-router",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -26.666666666666668,
+      "ci95": [
+        -41,
+        -9
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p03-evolutionary",
+      "challenger": "p02-slm-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -44,
+      "ci95": [
+        -97,
+        -11
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p03-evolutionary",
+      "challenger": "p02b-random-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 78,
+      "ci95": [
+        34,
+        165
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p03-evolutionary",
+      "challenger": "p04-critic-rerank",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -70,
+      "ci95": [
+        -119,
+        -39
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p03-evolutionary",
+      "challenger": "p05-parsed-prompt-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -35,
+      "ci95": [
+        -54,
+        -17
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p03-evolutionary",
+      "challenger": "p06-cascade",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -29.333333333333332,
+      "ci95": [
+        -45,
+        -19
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p03-evolutionary",
+      "challenger": "p07-self-consistent",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -40.333333333333336,
+      "ci95": [
+        -56,
+        -13
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p04-critic-rerank",
+      "challenger": "p00-deterministic",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 12.333333333333334,
+      "ci95": [
+        -32,
+        66
+      ],
+      "p": 0.5164,
+      "significant": false
+    },
+    {
+      "champion": "p04-critic-rerank",
+      "challenger": "p01-smart-router",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 43.333333333333336,
+      "ci95": [
+        11,
+        89
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p04-critic-rerank",
+      "challenger": "p02-slm-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 26,
+      "ci95": [
+        15,
+        41
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p04-critic-rerank",
+      "challenger": "p02b-random-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 148,
+      "ci95": [
+        87,
+        204
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p04-critic-rerank",
+      "challenger": "p03-evolutionary",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 70,
+      "ci95": [
+        39,
+        119
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p04-critic-rerank",
+      "challenger": "p05-parsed-prompt-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 35,
+      "ci95": [
+        5,
+        65
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p04-critic-rerank",
+      "challenger": "p06-cascade",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 40.666666666666664,
+      "ci95": [
+        20,
+        74
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p04-critic-rerank",
+      "challenger": "p07-self-consistent",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 29.666666666666668,
+      "ci95": [
+        -4,
+        67
+      ],
+      "p": 0.0768,
+      "significant": false
+    },
+    {
+      "champion": "p05-parsed-prompt-mutator",
+      "challenger": "p00-deterministic",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -22.666666666666668,
+      "ci95": [
+        -37,
+        1
+      ],
+      "p": 0.0764,
+      "significant": false
+    },
+    {
+      "champion": "p05-parsed-prompt-mutator",
+      "challenger": "p01-smart-router",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 8.333333333333334,
+      "ci95": [
+        -24,
+        25
+      ],
+      "p": 0.533,
+      "significant": false
+    },
+    {
+      "champion": "p05-parsed-prompt-mutator",
+      "challenger": "p02-slm-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -9,
+      "ci95": [
+        -43,
+        10
+      ],
+      "p": 0.6044,
+      "significant": false
+    },
+    {
+      "champion": "p05-parsed-prompt-mutator",
+      "challenger": "p02b-random-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 113,
+      "ci95": [
+        52,
+        199
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p05-parsed-prompt-mutator",
+      "challenger": "p03-evolutionary",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 35,
+      "ci95": [
+        17,
+        54
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p05-parsed-prompt-mutator",
+      "challenger": "p04-critic-rerank",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -35,
+      "ci95": [
+        -65,
+        -5
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p05-parsed-prompt-mutator",
+      "challenger": "p06-cascade",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 5.666666666666667,
+      "ci95": [
+        -7,
+        15
+      ],
+      "p": 0.3014,
+      "significant": false
+    },
+    {
+      "champion": "p05-parsed-prompt-mutator",
+      "challenger": "p07-self-consistent",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -5.333333333333333,
+      "ci95": [
+        -39,
+        21
+      ],
+      "p": 0.813,
+      "significant": false
+    },
+    {
+      "champion": "p06-cascade",
+      "challenger": "p00-deterministic",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -28.333333333333332,
+      "ci95": [
+        -52,
+        -8
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p06-cascade",
+      "challenger": "p01-smart-router",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 2.6666666666666665,
+      "ci95": [
+        -17,
+        15
+      ],
+      "p": 0.5152,
+      "significant": false
+    },
+    {
+      "champion": "p06-cascade",
+      "challenger": "p02-slm-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -14.666666666666666,
+      "ci95": [
+        -52,
+        13
+      ],
+      "p": 0.5246,
+      "significant": false
+    },
+    {
+      "champion": "p06-cascade",
+      "challenger": "p02b-random-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 107.33333333333333,
+      "ci95": [
+        59,
+        184
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p06-cascade",
+      "challenger": "p03-evolutionary",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 29.333333333333332,
+      "ci95": [
+        19,
+        45
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p06-cascade",
+      "challenger": "p04-critic-rerank",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -40.666666666666664,
+      "ci95": [
+        -74,
+        -20
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p06-cascade",
+      "challenger": "p05-parsed-prompt-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -5.666666666666667,
+      "ci95": [
+        -15,
+        7
+      ],
+      "p": 0.3002,
+      "significant": false
+    },
+    {
+      "champion": "p06-cascade",
+      "challenger": "p07-self-consistent",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -11,
+      "ci95": [
+        -32,
+        6
+      ],
+      "p": 0.291,
+      "significant": false
+    },
+    {
+      "champion": "p07-self-consistent",
+      "challenger": "p00-deterministic",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -17.333333333333332,
+      "ci95": [
+        -58,
+        7
+      ],
+      "p": 0.5164,
+      "significant": false
+    },
+    {
+      "champion": "p07-self-consistent",
+      "challenger": "p01-smart-router",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 13.666666666666666,
+      "ci95": [
+        4,
+        22
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p07-self-consistent",
+      "challenger": "p02-slm-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -3.6666666666666665,
+      "ci95": [
+        -45,
+        45
+      ],
+      "p": 0.7378,
+      "significant": false
+    },
+    {
+      "champion": "p07-self-consistent",
+      "challenger": "p02b-random-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 118.33333333333333,
+      "ci95": [
+        86,
+        178
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p07-self-consistent",
+      "challenger": "p03-evolutionary",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 40.333333333333336,
+      "ci95": [
+        13,
+        56
+      ],
+      "p": 0,
+      "significant": true
+    },
+    {
+      "champion": "p07-self-consistent",
+      "challenger": "p04-critic-rerank",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": -29.666666666666668,
+      "ci95": [
+        -67,
+        4
+      ],
+      "p": 0.0738,
+      "significant": false
+    },
+    {
+      "champion": "p07-self-consistent",
+      "challenger": "p05-parsed-prompt-mutator",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 5.333333333333333,
+      "ci95": [
+        -21,
+        39
+      ],
+      "p": 0.824,
+      "significant": false
+    },
+    {
+      "champion": "p07-self-consistent",
+      "challenger": "p06-cascade",
+      "goal": "default-balanced",
+      "metric": "playerRelevantWords",
+      "delta": 11,
+      "ci95": [
+        -6,
+        32
+      ],
+      "p": 0.286,
+      "significant": false
     }
   ],
   "pareto": [
     {
       "pipeline": "p00-deterministic",
-      "cost": 456.95590039999996,
-      "quality": 181.8,
+      "cost": 455.09669133333335,
+      "quality": 147,
       "paretoFrontier": false
     },
     {
       "pipeline": "p01-smart-router",
-      "cost": 440.39189920000007,
-      "quality": 183.2,
+      "cost": 493.40993899999984,
+      "quality": 178,
       "paretoFrontier": true
     },
     {
       "pipeline": "p02-slm-mutator",
-      "cost": 639.8967413999999,
-      "quality": 185.8,
+      "cost": 620.613383,
+      "quality": 160.66666666666666,
       "paretoFrontier": false
     },
     {
       "pipeline": "p02b-random-mutator",
-      "cost": 604.1173444,
-      "quality": 279.4,
+      "cost": 548.9786986666668,
+      "quality": 282.6666666666667,
+      "paretoFrontier": true
+    },
+    {
+      "pipeline": "p03-evolutionary",
+      "cost": 1190.2878083333335,
+      "quality": 204.66666666666666,
+      "paretoFrontier": false
+    },
+    {
+      "pipeline": "p04-critic-rerank",
+      "cost": 287.59806766666725,
+      "quality": 134.66666666666666,
+      "paretoFrontier": true
+    },
+    {
+      "pipeline": "p05-parsed-prompt-mutator",
+      "cost": 729.0400199999998,
+      "quality": 169.66666666666666,
+      "paretoFrontier": false
+    },
+    {
+      "pipeline": "p06-cascade",
+      "cost": 494.2909516666667,
+      "quality": 175.33333333333334,
+      "paretoFrontier": false
+    },
+    {
+      "pipeline": "p07-self-consistent",
+      "cost": 454.48242433333337,
+      "quality": 164.33333333333334,
       "paretoFrontier": true
     }
   ],
@@ -235,65 +1095,145 @@
     {
       "pipeline": "p00-deterministic",
       "goal": "default-balanced",
-      "runs": 5,
+      "runs": 3,
       "metrics": {
-        "playerRelevantWords.mean": 181.8,
-        "playerRelevantWords.p10": 162.2,
-        "playerRelevantWords.p90": 210.2,
-        "playerRelevantWords.std": 26.37612556839992,
-        "maxWordLength.mean": 9.4,
-        "averageWordLength.mean": 4.248258020204906,
-        "finalScore.mean": 315.5214924805482,
-        "meanElapsedMs": 456.95590039999996,
+        "playerRelevantWords.mean": 147,
+        "playerRelevantWords.p10": 121.6,
+        "playerRelevantWords.p90": 175.2,
+        "playerRelevantWords.std": 34.044089061098404,
+        "maxWordLength.mean": 8.666666666666666,
+        "averageWordLength.mean": 4.117744461200446,
+        "finalScore.mean": 273.10659988302626,
+        "meanElapsedMs": 455.09669133333335,
         "modelTokens.mean": 0
       }
     },
     {
       "pipeline": "p01-smart-router",
       "goal": "default-balanced",
-      "runs": 5,
+      "runs": 3,
       "metrics": {
-        "playerRelevantWords.mean": 183.2,
-        "playerRelevantWords.p10": 168.2,
-        "playerRelevantWords.p90": 202.8,
-        "playerRelevantWords.std": 19.51153504981092,
-        "maxWordLength.mean": 9.6,
-        "averageWordLength.mean": 4.241233738106365,
-        "finalScore.mean": 317.7887998720345,
-        "meanElapsedMs": 440.2418992000001,
+        "playerRelevantWords.mean": 178,
+        "playerRelevantWords.p10": 154.2,
+        "playerRelevantWords.p90": 201.4,
+        "playerRelevantWords.std": 29.512709126747414,
+        "maxWordLength.mean": 9.666666666666666,
+        "averageWordLength.mean": 4.361892846381919,
+        "finalScore.mean": 311.22377464169057,
+        "meanElapsedMs": 493.25993899999986,
         "modelTokens.mean": 150
       }
     },
     {
       "pipeline": "p02-slm-mutator",
       "goal": "default-balanced",
-      "runs": 5,
+      "runs": 3,
       "metrics": {
-        "playerRelevantWords.mean": 185.8,
-        "playerRelevantWords.p10": 149.6,
-        "playerRelevantWords.p90": 241.8,
-        "playerRelevantWords.std": 54.15902510200862,
-        "maxWordLength.mean": 9,
-        "averageWordLength.mean": 4.337248819829169,
-        "finalScore.mean": 315.68483435481164,
-        "meanElapsedMs": 639.4467413999998,
+        "playerRelevantWords.mean": 160.66666666666666,
+        "playerRelevantWords.p10": 144.8,
+        "playerRelevantWords.p90": 175.2,
+        "playerRelevantWords.std": 19.2180470738661,
+        "maxWordLength.mean": 8.333333333333334,
+        "averageWordLength.mean": 4.121862341588187,
+        "finalScore.mean": 287.7183018572343,
+        "meanElapsedMs": 620.163383,
         "modelTokens.mean": 450
       }
     },
     {
       "pipeline": "p02b-random-mutator",
       "goal": "default-balanced",
-      "runs": 5,
+      "runs": 3,
       "metrics": {
-        "playerRelevantWords.mean": 279.4,
-        "playerRelevantWords.p10": 244.2,
-        "playerRelevantWords.p90": 336.4,
-        "playerRelevantWords.std": 54.852529567924215,
-        "maxWordLength.mean": 9.8,
-        "averageWordLength.mean": 4.589252007421253,
-        "finalScore.mean": 418.2349212038962,
-        "meanElapsedMs": 604.1173444,
+        "playerRelevantWords.mean": 282.6666666666667,
+        "playerRelevantWords.p10": 233.4,
+        "playerRelevantWords.p90": 336.6,
+        "playerRelevantWords.std": 65.28654787422393,
+        "maxWordLength.mean": 10,
+        "averageWordLength.mean": 4.510346798788439,
+        "finalScore.mean": 426.13105562513823,
+        "meanElapsedMs": 548.9786986666668,
         "modelTokens.mean": 0
+      }
+    },
+    {
+      "pipeline": "p03-evolutionary",
+      "goal": "default-balanced",
+      "runs": 3,
+      "metrics": {
+        "playerRelevantWords.mean": 204.66666666666666,
+        "playerRelevantWords.p10": 188.2,
+        "playerRelevantWords.p90": 227.4,
+        "playerRelevantWords.std": 28.00595174839329,
+        "maxWordLength.mean": 8.666666666666666,
+        "averageWordLength.mean": 4.392906069702836,
+        "finalScore.mean": 332.87985678185663,
+        "meanElapsedMs": 1190.2378083333335,
+        "modelTokens.mean": 50
+      }
+    },
+    {
+      "pipeline": "p04-critic-rerank",
+      "goal": "default-balanced",
+      "runs": 3,
+      "metrics": {
+        "playerRelevantWords.mean": 134.66666666666666,
+        "playerRelevantWords.p10": 121.8,
+        "playerRelevantWords.p90": 146.6,
+        "playerRelevantWords.std": 15.631165450257807,
+        "maxWordLength.mean": 9,
+        "averageWordLength.mean": 4.057373535485758,
+        "finalScore.mean": 264.4448533762457,
+        "meanElapsedMs": 287.04806766666724,
+        "modelTokens.mean": 550
+      }
+    },
+    {
+      "pipeline": "p05-parsed-prompt-mutator",
+      "goal": "default-balanced",
+      "runs": 3,
+      "metrics": {
+        "playerRelevantWords.mean": 169.66666666666666,
+        "playerRelevantWords.p10": 157.6,
+        "playerRelevantWords.p90": 180.8,
+        "playerRelevantWords.std": 14.6401275039985,
+        "maxWordLength.mean": 10.333333333333334,
+        "averageWordLength.mean": 4.237565490210204,
+        "finalScore.mean": 306.6381288441159,
+        "meanElapsedMs": 728.4900199999998,
+        "modelTokens.mean": 550
+      }
+    },
+    {
+      "pipeline": "p06-cascade",
+      "goal": "default-balanced",
+      "runs": 3,
+      "metrics": {
+        "playerRelevantWords.mean": 175.33333333333334,
+        "playerRelevantWords.p10": 165.8,
+        "playerRelevantWords.p90": 187.4,
+        "playerRelevantWords.std": 14.571661996262929,
+        "maxWordLength.mean": 9.666666666666666,
+        "averageWordLength.mean": 4.157316221129781,
+        "finalScore.mean": 313.2732672260725,
+        "meanElapsedMs": 494.24095166666666,
+        "modelTokens.mean": 50
+      }
+    },
+    {
+      "pipeline": "p07-self-consistent",
+      "goal": "default-balanced",
+      "runs": 3,
+      "metrics": {
+        "playerRelevantWords.mean": 164.33333333333334,
+        "playerRelevantWords.p10": 141.4,
+        "playerRelevantWords.p90": 183,
+        "playerRelevantWords.std": 27.5922694487665,
+        "maxWordLength.mean": 10.333333333333334,
+        "averageWordLength.mean": 4.1352444456800574,
+        "finalScore.mean": 304.99308483675355,
+        "meanElapsedMs": 454.43242433333336,
+        "modelTokens.mean": 50
       }
     }
   ]
