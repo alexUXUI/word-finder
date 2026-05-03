@@ -44,10 +44,20 @@ export interface SlmSelection {
 }
 
 /**
- * Browser-runnable instruct models that we've vetted with Transformers.js.
- * Order matters — first one is the unconditional fallback.
+ * Browser-runnable instruct models that we've vetted with Transformers.js,
+ * plus a server-side option that runs upstream (Cloudflare Pages Function
+ * → Workers AI today, → self-hosted Container in Phase 2). Order matters —
+ * the auto-picker iterates this list.
  */
 export const SLM_REGISTRY: readonly SlmModel[] = [
+  {
+    id: 'cloudflare-server',
+    modelId: 'cloudflare-server',
+    approxSizeMb: 0,
+    displayName: 'Cloudflare Server',
+    recommendation: 'low-end',
+    note: 'Runs upstream — no on-device load. Best for old phones / low-RAM. Requires network.',
+  },
   {
     id: 'smollm2-135m',
     modelId: 'HuggingFaceTB/SmolLM2-135M-Instruct',
@@ -82,8 +92,16 @@ export const SLM_REGISTRY: readonly SlmModel[] = [
   },
 ];
 
+/** True when the model runs server-side instead of in the browser. */
+export const isServerSide = (m: SlmModel): boolean =>
+  m.id === 'cloudflare-server';
+
 const FALLBACK_DESKTOP = SLM_REGISTRY.find((m) => m.id === 'qwen2.5-0.5b')!;
 const FALLBACK_MOBILE = SLM_REGISTRY.find((m) => m.id === 'smollm2-360m')!;
+// iPhone X-class / iOS UAs that historically OOM on any on-device model
+// get the server-side fallback by default. The user can still override
+// via the picker.
+const FALLBACK_IOS = SLM_REGISTRY.find((m) => m.id === 'cloudflare-server')!;
 
 const STORAGE_KEY = 'word-finder.slm-id';
 
@@ -144,6 +162,12 @@ export const selectSlmModel = (): SlmSelection => {
     return { model: FALLBACK_DESKTOP, reason: 'no navigator (SSR)' };
   }
   const ua = navigator.userAgent;
+  // iOS gets server-side by default — iPhone X-class hardware can't
+  // survive any on-device model and we don't want to find out the hard
+  // way each session.
+  if (/iPhone|iPad|iPod/i.test(ua)) {
+    return { model: FALLBACK_IOS, reason: `UA: ${uaSummary(ua)} (iOS → server)` };
+  }
   if (looksLikeMobile(ua)) {
     return { model: FALLBACK_MOBILE, reason: `UA: ${uaSummary(ua)}` };
   }

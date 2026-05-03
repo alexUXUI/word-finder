@@ -1,0 +1,22 @@
+# Cloudflare Pages Functions configuration.
+#
+# This file binds the `AI` namespace so `functions/api/llm.ts` can call
+# Workers AI (`env.AI.run(...)`). Phase 1 of the server-side SLM rollout —
+# see docs/SERVER_SLM.md.
+#
+# When we move to a self-hosted Container in Phase 2, replace the [ai]
+# binding with a [vars] entry pointing at the Container's URL and update
+# functions/api/llm.ts accordingly.
+
+name = "word-finder"
+compatibility_date = "2025-04-01"
+pages_build_output_dir = "./dist"
+
+[ai]
+binding = "AI"
+
+# Public, non-secret config. Bindings/secrets are managed in the
+# Cloudflare dashboard; this file is committed.
+[vars]
+LLM_UPSTREAM = "workers-ai"
+LLM_MODEL = "@cf/meta/llama-3.2-1b-instruct"

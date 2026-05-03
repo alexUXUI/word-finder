@@ -80,21 +80,27 @@ export const Controls = component$(() => {
     smart.modelLoadProgress = 0;
     smart.modelLoadError = undefined;
     try {
-      const { TransformersJsProvider, selectSlmTier } = await import(
-        '../intelligence/local-model'
-      );
+      const {
+        TransformersJsProvider,
+        CloudflareServerProvider,
+        selectSlmModel,
+        isServerSide,
+      } = await import('../intelligence/local-model');
       const { MLflowTracer, NoopTracer } = await import('../generation/trace');
-      const tier = selectSlmTier();
+      const sel = selectSlmModel();
+      const tier = sel.model;
       smart.slmTier = {
         id: tier.id,
         modelId: tier.modelId,
         approxSizeMb: tier.approxSizeMb,
         displayName: tier.displayName,
-        reason: tier.reason,
+        reason: sel.reason,
       };
-      const provider = new TransformersJsProvider({
-        modelId: tier.modelId,
-      });
+      // Server-side tier doesn't load anything in the browser; instantiate
+      // the proxy provider and skip straight to ready.
+      const provider = isServerSide(tier)
+        ? new CloudflareServerProvider({ modelId: tier.modelId })
+        : new TransformersJsProvider({ modelId: tier.modelId });
       smart.refs.provider = noSerialize(provider);
 
       // Only emit traces to MLflow when running on a localhost dev box.
@@ -116,6 +122,8 @@ export const Controls = component$(() => {
             })
           : NoopTracer
       );
+      // CloudflareServerProvider.load() is a no-op; TransformersJsProvider
+      // streams real progress.
       await provider.load((p) => {
         if (p.total && p.loaded) {
           smart.modelLoadProgress = (p.loaded / p.total) * 100;
