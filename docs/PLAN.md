@@ -2,6 +2,8 @@
 
 Working document. Future sessions resume here. Push back on anything below before code lands; once a phase ships, decisions become hard to reverse.
 
+> Companion doc: [`AGENTIC_VISION.md`](./AGENTIC_VISION.md) — what the system asymptotes to once shipped (eval-as-spec, traces, feedback loop, offline prompt optimization). PLAN.md is the *build* plan; AGENTIC_VISION.md is the *target state*. The phasing here was updated to absorb the vision doc — see Phase 1 changes below.
+
 ## The real problem
 
 The existing `randomBoard()` in `src/components/boggle/logic/board.ts` produces decent total word counts but **boards feel the same**. Word families repeat, vowel/consonant placement follows a narrow zip-pattern, and the "unpopular consonant" pick is barely random. Players notice.
@@ -72,24 +74,31 @@ Cheap to do, expensive to skip. Numbers shape every architecture decision.
 
 **Acceptance**: numbers in hand, model candidate selected, draft PR opened so user can react before Phase 1 commits to a budget.
 
-### Phase 1 — Deterministic baseline (3–5 sessions)
+### Phase 1 — Deterministic baseline + eval/trace foundation (5–7 sessions)
 
-This alone fixes ~70–80% of the diversity problem.
+This alone fixes ~70–80% of the diversity problem **and** establishes the measurability that every later phase depends on. Per AGENTIC_VISION.md, eval/trace cannot be deferred — without them, every later change is guesswork.
 
-**Deliverables**
+**Deterministic deliverables**
 - `BoardStrategy` interface; refactor existing generator into one named strategy.
 - New strategies:
   - `frequency-weighted` — sample from English letter frequencies, parameterized.
   - `n-gram` — bias toward common bigram/trigram adjacencies.
   - `seed-word` — embed selected dictionary words on legal Boggle paths, fill rest.
   - `dice-shuffle` — Boggle-style fixed dice faces, shuffled positions.
-- `BoardScorer` returning multi-dimensional score (totalWords, playableWords, wordsByLength, averageWordLength, maxWordLength, uniqueLetters, vowelRatio, prefixDiversity, similarityToRecent, finalScore).
+- **Fix the english vowel pool** — the Phase 0 finding. Replace `['e','e','e','e','e','a','a','a','i','i','s','s']` with frequency-weighted real vowels (a/e/i/o/u). One-line bug fix that solves most of the perceived sameness.
+- `BoardScorer` returning multi-dimensional score (totalWords, playableWords, wordsByLength, averageWordLength, maxWordLength, uniqueLetters, vowelRatio, vowelInventoryEntropy, prefixDiversity, similarityToRecent, finalScore).
 - `SearchEngine` running candidates with budget (max attempts, max ms), tracking best, applying diversity penalty against recent boards.
 - Web Worker hosting the engine.
 - Fix trie singleton bug in `solve()` (allocates fresh trie per call or accepts a pre-built one).
+
+**Eval & trace deliverables (new — promoted from old Phase 5)**
+- `docs/EVAL_SUITE.md` v1 with 3–4 starter goals + target metrics (default-balanced, rare-letter-chaotic, long-word-heavy, classic).
+- `yarn eval` script that runs each goal N times against the deterministic search engine, computes metrics, asserts thresholds, writes a structured report. Failing thresholds block merges.
+- `src/intelligence/trace/types.ts` — final `GenerationTrace` and `Span` schemas (per AGENTIC_VISION.md §4 Trace Surface).
+- `GenerationTracer` interface with `console` and `in-memory` adapters wired into the search engine. Every generation emits a trace from day one.
 - Tests across all of the above.
 
-**Acceptance**: measured improvement vs. baseline on (a) avg 5+ word count, (b) pairwise diversity. No regressions in unit / e2e suites.
+**Acceptance**: eval suite passes (mean 5+ words ≥ 100, p10 ≥ 50, vowel-inventory entropy >> 0). Every generation produces a parseable trace. No regressions in existing unit / e2e suites.
 
 ### Phase 2 — Intelligence layer (3–5 sessions)
 
@@ -118,19 +127,33 @@ This alone fixes ~70–80% of the diversity problem.
 - Lookup biases new generation toward params that worked for similar past goals.
 - Novelty penalty against recent recipes to avoid re-using the exact same recipe twice in a row.
 
-### Phase 5 — Tracing (1–2 sessions)
+### Phase 5 — Trace pipeline polish (1–2 sessions)
+
+The tracer skeleton ships in Phase 1. Phase 5 is the production sink + dashboards.
 
 **Deliverables**
-- `GenerationTracer` interface (OpenTelemetry-shaped).
-- Adapters: `console`, `in-memory`, `mlflow` (POSTs to a small Cloudflare Worker proxy that forwards to an MLflow server you point at — MLflow has no JS SDK).
-- Span types per the previous draft (AGENT for full run, CHAT_MODEL for plan calls, TOOL for deterministic tools, etc.).
-- Trace viewer in the dev panel.
+- `mlflow` adapter — small Cloudflare Worker proxy that batches OTel-shaped span exports and forwards to an MLflow Tracking Server (or any OTel collector you point at).
+- IndexedDB sink for offline replay.
+- Trace viewer in the dev panel; per-generation drill-down.
+- Sampling policy (10% for non-anomaly traces, 100% for evals and errors).
 
-### Phase 6 — Polish (open-ended)
+### Phase 6 — Offline optimization (3–5 sessions)
+
+The capstone of the self-improving loop. R&D-side, not browser-side.
+
+**Deliverables**
+- `tools/optimizer/` directory (or sister Python repo if DSPy-based).
+- `yarn optimize:prompts` — prompt-version search over the labeled `(trace, outcome)` dataset, against the eval set. Outputs new versioned prompt artifacts + a comparison report.
+- `yarn optimize:strategies` — tunes strategy weights and budget allocations against the eval set.
+- `yarn benchmark:model <model-id>` — sweeps a candidate model against the eval set; reports size/latency/quality.
+- CI step that fails when a promoted prompt/model regresses on the weighted eval metric.
+
+### Phase 7 — Polish (open-ended)
 
 - "Why this board?" panel for players.
 - Generation diagnostics in dev mode.
 - Production telemetry on diversity score distribution.
+- Cohort analysis comparing eval-predicted scores vs explicit player feedback.
 
 ## Risks tracked openly
 
