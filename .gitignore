@@ -46,3 +46,4 @@ functions/**/*.js
 /playwright/.cache
 /.playwright-mcp
 working-state-*.png
+word-finder-*.png
