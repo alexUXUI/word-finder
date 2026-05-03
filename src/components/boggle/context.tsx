@@ -1,4 +1,5 @@
 import { createContext } from '@builder.io/qwik';
+import type { NoSerialize, Signal } from '@builder.io/qwik';
 import type {
   BoardState,
   DictionaryState,
@@ -12,3 +13,33 @@ export const DictionaryCtx = createContext<DictionaryState>('dictionary');
 export const GameCtx = createContext<GameState>('game-context');
 export const AnswersCtx = createContext<AnswersState>('answers-context');
 export const WorkerCtx = createContext<WebWorkerState>('worker-context');
+
+export type SmartModelStatus = 'idle' | 'loading' | 'ready' | 'error';
+export type SmartGenerationStatus = 'idle' | 'running' | 'complete' | 'error';
+
+export interface SmartState {
+  enabled: boolean;
+  modelStatus: SmartModelStatus;
+  modelLoadProgress: number;
+  modelLoadError?: string;
+  generationStatus: SmartGenerationStatus;
+  generationStage?: string;
+  lastExplanation?: string;
+  lastStrategy?: string;
+  lastFinalScore?: number;
+  lastModelCalls?: number;
+  lastElapsedMs?: number;
+  /** Holds noSerialize'd refs to SLM provider + MLflow tracer. */
+  refs: {
+    provider?: NoSerialize<unknown>;
+    tracer?: NoSerialize<unknown>;
+  };
+  /** Function the search side calls when orchestrator finishes (or errors). */
+  onResult?: NoSerialize<
+    (result: { board: string; explanation: string; strategy: string; score: number; modelCalls: number; elapsedMs: number } | { error: string }) => void
+  >;
+  /** Pending board override — main thread sets this to swap in an orchestrator board after generation. */
+  pendingBoardOverride?: Signal<string | null>;
+}
+
+export const SmartCtx = createContext<SmartState>('smart-context');

@@ -11,6 +11,7 @@ import {
 import { Controls } from './controls/Controls';
 import { WordsPanel } from './controls/WordsPanel';
 import { BoggleBoard } from './board/Board';
+import { SmartBanner } from './intelligence/SmartBanner';
 import { calculateCellWidth, handleFoundWord } from './logic/board';
 import {
   DictionaryCtx,
@@ -18,7 +19,9 @@ import {
   GameCtx,
   AnswersCtx,
   WorkerCtx,
+  SmartCtx,
 } from './context';
+import type { SmartState } from './context';
 import BoggleWorker from './worker?worker';
 
 import type {
@@ -74,6 +77,14 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
     foundWord: null,
   });
 
+  const smartState = useStore<SmartState>({
+    enabled: false,
+    modelStatus: 'idle',
+    modelLoadProgress: 0,
+    generationStatus: 'idle',
+    refs: {},
+  });
+
   useOnWindow(
     'DOMContentLoaded',
     $(() => {
@@ -126,10 +137,12 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
   useContextProvider(GameCtx, gameState);
   useContextProvider(AnswersCtx, answersState);
   useContextProvider(WorkerCtx, workerState);
+  useContextProvider(SmartCtx, smartState);
 
   return (
     <div class="h-[100%] dont-scroll">
       <Controls />
+      <SmartBanner />
       <UserGameStats />
       <BoggleBoard />
       <WordsPanel />
