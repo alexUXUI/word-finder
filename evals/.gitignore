@@ -1,0 +1,3 @@
+# Bench results pile up — only the current `leaderboard.json` is meaningful
+# checked in. Historical runs land in `results/` and are gitignored.
+results/

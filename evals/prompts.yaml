@@ -1,0 +1,35 @@
+# Free-form prompts with ground-truth structured goals. Used by the
+# `prompt-parser` role's `parser.f1` metric and downstream `goalAdherence`
+# checks once algorithm G (slm-parsed-prompt) ships.
+
+- id: prompt-long-ing
+  prompt: "lots of long words ending in -ing"
+  expectedGoal:
+    style: long-word-heavy
+    themedSuffixes: [ing]
+
+- id: prompt-rare-no-q
+  prompt: "rare letters but no Q please, chaotic vibe"
+  expectedGoal:
+    style: chaotic
+    avoidedLetters: [q]
+
+- id: prompt-classic-feel
+  prompt: "classic Boggle feel, 4x4 with 3-letter words allowed"
+  expectedGoal:
+    size: 4
+    minWordLength: 3
+    style: classic
+
+- id: prompt-vowel-rich
+  prompt: "lots of vowels, easy to play, beginner-friendly"
+  expectedGoal:
+    style: balanced
+    extra:
+      vowelRatioOptimumValue: 0.5
+
+- id: prompt-themed-ed
+  prompt: "past-tense words ending in -ED everywhere"
+  expectedGoal:
+    style: long-word-heavy
+    themedSuffixes: [ed]
