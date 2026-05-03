@@ -2,11 +2,11 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['tests/unit/**/*.test.ts'],
-    exclude: ['node_modules', 'tests/bench/**'],
+    include: ['tests/bench/**/*.test.ts'],
     environment: 'node',
     globals: false,
     reporters: ['verbose'],
-    testTimeout: 5_000,
+    testTimeout: 600_000,
+    hookTimeout: 120_000,
   },
 });

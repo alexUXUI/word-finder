@@ -25,6 +25,7 @@
     "test": "yarn test.unit && yarn test.e2e",
     "test.unit": "vitest run",
     "test.unit.watch": "vitest",
+    "bench": "vitest run --config vitest.bench.config.ts",
     "test.e2e": "playwright test",
     "test.e2e.headed": "playwright test --headed",
     "test.e2e.ui": "playwright test --ui",
