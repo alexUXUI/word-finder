@@ -22,6 +22,14 @@ export interface SmartState {
   modelStatus: SmartModelStatus;
   modelLoadProgress: number;
   modelLoadError?: string;
+  /** Which model tier was picked for this device (small for mobile, large for desktop). */
+  slmTier?: {
+    id: 'small' | 'large';
+    modelId: string;
+    approxSizeMb: number;
+    displayName: string;
+    reason: string;
+  };
   generationStatus: SmartGenerationStatus;
   generationStage?: string;
   /** Per-generation narration log — populated by orchestrator callbacks. */

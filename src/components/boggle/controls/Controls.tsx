@@ -79,12 +79,20 @@ export const Controls = component$(() => {
     smart.modelLoadProgress = 0;
     smart.modelLoadError = undefined;
     try {
-      const { TransformersJsProvider } = await import(
+      const { TransformersJsProvider, selectSlmTier } = await import(
         '../intelligence/local-model'
       );
       const { MLflowTracer, NoopTracer } = await import('../generation/trace');
+      const tier = selectSlmTier();
+      smart.slmTier = {
+        id: tier.id,
+        modelId: tier.modelId,
+        approxSizeMb: tier.approxSizeMb,
+        displayName: tier.displayName,
+        reason: tier.reason,
+      };
       const provider = new TransformersJsProvider({
-        modelId: 'onnx-community/Qwen2.5-0.5B-Instruct',
+        modelId: tier.modelId,
       });
       smart.refs.provider = noSerialize(provider);
 
@@ -410,23 +418,39 @@ export const Controls = component$(() => {
                 data-testid="smart-mode-toggle"
                 data-smart-enabled={smart.enabled ? 'true' : 'false'}
                 data-smart-model-status={smart.modelStatus}
+                data-slm-tier={smart.slmTier?.id ?? 'unselected'}
                 type="button"
                 onClick$={handleToggleSmartMode}
                 class="text-[13px] rounded-md border-2 border-blue-900 bg-white h-[36px] px-2"
               >
                 {smart.modelStatus === 'loading'
-                  ? `Loading model (${Math.round(smart.modelLoadProgress)}%)…`
+                  ? `Loading ${smart.slmTier?.displayName ?? 'model'} (${Math.round(smart.modelLoadProgress)}%)…`
                   : smart.modelStatus === 'error'
                   ? `Error: ${smart.modelLoadError ?? 'unknown'} (click to retry)`
                   : smart.enabled && smart.modelStatus === 'ready'
-                  ? '✨ Smart Mode: ON'
+                  ? `✨ Smart Mode: ON · ${smart.slmTier?.displayName ?? ''}`
                   : smart.enabled
                   ? '✨ Smart Mode: ON (model loads on first reset)'
                   : 'Smart Mode: OFF'}
               </button>
               {smart.enabled && smart.modelStatus === 'idle' && (
-                <span style="font-size:11px; color:#666; margin-top:2px;">
-                  Downloads ~786 MB Qwen2.5-0.5B once on first reset, then uses it locally.
+                <span
+                  data-testid="smart-mode-tier-hint"
+                  style="font-size:11px; color:#666; margin-top:2px;"
+                >
+                  On first reset, downloads the right SLM for your device
+                  (small on mobile ~110 MB, large on desktop ~786 MB), then
+                  uses it locally. Override with <code>?slmTier=small</code>
+                  {' '}or <code>?slmTier=large</code>.
+                </span>
+              )}
+              {smart.slmTier && smart.modelStatus === 'ready' && (
+                <span
+                  data-testid="smart-mode-tier-info"
+                  style="font-size:11px; color:#666; margin-top:2px;"
+                >
+                  Tier: <strong>{smart.slmTier.id}</strong>
+                  {' '}({smart.slmTier.approxSizeMb} MB) — {smart.slmTier.reason}
                 </span>
               )}
             </div>
