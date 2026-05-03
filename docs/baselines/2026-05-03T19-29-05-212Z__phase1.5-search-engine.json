@@ -1,0 +1,119 @@
+{
+  "config": {
+    "N_BOARDS": 50,
+    "SIZE": 5,
+    "MIN_WORD_LEN": 5,
+    "dictSize": 84099,
+    "runAt": "2026-05-03T19:29:05.212Z",
+    "label": "phase1.5-search-engine",
+    "gitSha": "89461f7"
+  },
+  "singleShot": {
+    "playerRelevantWords": {
+      "min": 5,
+      "max": 121,
+      "mean": 52.92,
+      "median": 48,
+      "p10": 23,
+      "p90": 95,
+      "stdDev": 27.468410947850625
+    },
+    "totalWords": {
+      "min": 106,
+      "max": 404,
+      "mean": 227.14,
+      "median": 220,
+      "p10": 168,
+      "p90": 309,
+      "stdDev": 61.41433383176927
+    }
+  },
+  "bestOfN": {
+    "playerRelevantWords": {
+      "min": 125,
+      "max": 236,
+      "mean": 175.88,
+      "median": 174,
+      "p10": 143,
+      "p90": 222,
+      "stdDev": 28.245098689861223
+    },
+    "totalWords": {
+      "min": 318,
+      "max": 570,
+      "mean": 430.6,
+      "median": 432,
+      "p10": 367,
+      "p90": 513,
+      "stdDev": 55.94783284453475
+    },
+    "elapsedMsPerBoard": {
+      "min": 359.8287300000011,
+      "max": 437.89418000000114,
+      "mean": 392.1370517200002,
+      "median": 392.25116999999955,
+      "p10": 371.41622899999857,
+      "p90": 423.93309000000045,
+      "stdDev": 18.061089306296097
+    },
+    "candidatesEvaluatedPerBoard": {
+      "min": 75,
+      "max": 75,
+      "mean": 75,
+      "median": 75,
+      "p10": 75,
+      "p90": 75,
+      "stdDev": 0
+    },
+    "stopReasons": {
+      "max-candidates": 50
+    }
+  },
+  "delta": {
+    "meanPlayerRelevantWords": 122.96,
+    "p10PlayerRelevantWords": 120,
+    "p90PlayerRelevantWords": 127
+  },
+  "sampleSearchBoards": [
+    {
+      "board": "elsnwatefaletsudnrnmhtnet",
+      "totalWords": 390,
+      "fivePlusWords": 199,
+      "finalScore": 327.10010035928565,
+      "elapsedMs": 430.57318399999986,
+      "candidatesEvaluated": 75
+    },
+    {
+      "board": "ihnoaereomdeviialtncidsre",
+      "totalWords": 340,
+      "fivePlusWords": 132,
+      "finalScore": 258.6179736624531,
+      "elapsedMs": 392.4610219999995,
+      "candidatesEvaluated": 75
+    },
+    {
+      "board": "aotasverteedehdoiontsnacd",
+      "totalWords": 434,
+      "fivePlusWords": 183,
+      "finalScore": 329.75654834589864,
+      "elapsedMs": 398.27779399999963,
+      "candidatesEvaluated": 75
+    },
+    {
+      "board": "yeesteenretegaecomstetten",
+      "totalWords": 473,
+      "fivePlusWords": 222,
+      "finalScore": 362.63392707698733,
+      "elapsedMs": 423.93309000000045,
+      "candidatesEvaluated": 75
+    },
+    {
+      "board": "honstdoresltikrhlsrdmeirh",
+      "totalWords": 388,
+      "fivePlusWords": 168,
+      "finalScore": 293.8150642671505,
+      "elapsedMs": 374.6791199999998,
+      "candidatesEvaluated": 75
+    }
+  ]
+}

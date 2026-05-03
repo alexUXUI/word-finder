@@ -40,7 +40,7 @@ export interface WebWorkerState {
 export interface WasmState {
   mod: NoSerialize<
     // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-    typeof import('/Users/alexbennett/Desktop/personal/boggle/src/components/boggle/boggle-solver/pkg/boggle_solver')
+    typeof import('./boggle-solver/pkg/boggle_solver')
   > | null;
 }
 

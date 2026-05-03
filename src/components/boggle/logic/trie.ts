@@ -1,6 +1,6 @@
 import type { TrieNode } from '../models';
 
-class TrieClass {
+export class TrieClass {
   root: TrieNode = {
     children: {},
   };
@@ -69,4 +69,13 @@ class TrieClass {
   }
 }
 
+export const buildTrie = (words: string[]): TrieClass => {
+  const t = new TrieClass();
+  for (const w of words) t.add(w);
+  return t;
+};
+
+// Module-level singleton retained for backward compatibility with existing
+// tests and callers. Prefer `buildTrie(words)` for new code — the singleton
+// accumulates state across calls and leaks memory in hot paths.
 export const trie = new TrieClass();

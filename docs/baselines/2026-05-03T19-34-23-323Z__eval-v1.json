@@ -1,0 +1,127 @@
+{
+  "runAt": "2026-05-03T19:34:23.323Z",
+  "label": "eval-v1",
+  "gitSha": "40e42b9",
+  "weightedMean": 1,
+  "goals": [
+    {
+      "id": "default-balanced",
+      "weight": 1,
+      "runs": 20,
+      "metrics": {
+        "playerRelevantWords.mean": 186.85,
+        "playerRelevantWords.p10": 146,
+        "playerRelevantWords.p90": 256,
+        "maxWordLength.mean": 9.4,
+        "wordsByLength.>=8.mean": 12.15,
+        "meanElapsedMs": 302.97701935,
+        "vowelInventoryEntropyBits": 4.321928094887363,
+        "letterCoverage": 23
+      },
+      "checks": {
+        "playerRelevantWords.mean": {
+          "pass": true,
+          "expr": ">= 100",
+          "value": 186.85
+        },
+        "playerRelevantWords.p10": {
+          "pass": true,
+          "expr": ">= 50",
+          "value": 146
+        },
+        "maxWordLength.mean": {
+          "pass": true,
+          "expr": ">= 6",
+          "value": 9.4
+        },
+        "vowelInventoryEntropyBits": {
+          "pass": true,
+          "expr": ">= 4.0",
+          "value": 4.321928094887363
+        },
+        "letterCoverage": {
+          "pass": true,
+          "expr": ">= 22",
+          "value": 23
+        },
+        "meanElapsedMs": {
+          "pass": true,
+          "expr": "<= 2000",
+          "value": 302.97701935
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "long-word-heavy",
+      "weight": 0.7,
+      "runs": 15,
+      "metrics": {
+        "playerRelevantWords.mean": 160.33333333333334,
+        "playerRelevantWords.p10": 115,
+        "playerRelevantWords.p90": 199,
+        "maxWordLength.mean": 9.6,
+        "wordsByLength.>=8.mean": 10.333333333333334,
+        "meanElapsedMs": 298.4919339333333,
+        "vowelInventoryEntropyBits": 3.906890595608518,
+        "letterCoverage": 22
+      },
+      "checks": {
+        "maxWordLength.mean": {
+          "pass": true,
+          "expr": ">= 7",
+          "value": 9.6
+        },
+        "wordsByLength.>=8.mean": {
+          "pass": true,
+          "expr": ">= 1",
+          "value": 10.333333333333334
+        },
+        "playerRelevantWords.mean": {
+          "pass": true,
+          "expr": ">= 60",
+          "value": 160.33333333333334
+        },
+        "vowelInventoryEntropyBits": {
+          "pass": true,
+          "expr": ">= 3.5",
+          "value": 3.906890595608518
+        }
+      },
+      "pass": true
+    },
+    {
+      "id": "classic-boggle",
+      "weight": 0.5,
+      "runs": 15,
+      "metrics": {
+        "playerRelevantWords.mean": 187.53333333333333,
+        "playerRelevantWords.p10": 160,
+        "playerRelevantWords.p90": 228,
+        "maxWordLength.mean": 7.866666666666666,
+        "wordsByLength.>=8.mean": 1.6666666666666667,
+        "meanElapsedMs": 81.95456099999974,
+        "vowelInventoryEntropyBits": 3.906890595608518,
+        "letterCoverage": 21
+      },
+      "checks": {
+        "playerRelevantWords.mean": {
+          "pass": true,
+          "expr": ">= 60",
+          "value": 187.53333333333333
+        },
+        "playerRelevantWords.p10": {
+          "pass": true,
+          "expr": ">= 30",
+          "value": 160
+        },
+        "meanElapsedMs": {
+          "pass": true,
+          "expr": "<= 2000",
+          "value": 81.95456099999974
+        }
+      },
+      "pass": true
+    }
+  ]
+}

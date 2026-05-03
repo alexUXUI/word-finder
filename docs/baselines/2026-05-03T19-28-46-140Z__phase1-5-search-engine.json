@@ -1,0 +1,210 @@
+{
+  "config": {
+    "N_BOARDS": 100,
+    "SIZE": 5,
+    "MIN_WORD_LEN": 5,
+    "dictUrl": "https://boggle.pages.dev/engmix.txt",
+    "dictSize": 84099,
+    "runAt": "2026-05-03T19:28:46.140Z",
+    "label": "phase1.5-search-engine",
+    "gitSha": "89461f7"
+  },
+  "timing": {
+    "generationTotalMs": 13.658946999999898,
+    "generationPerBoardMs": 0.136589469999999,
+    "solve": {
+      "min": 43.41503299999931,
+      "max": 151.42237,
+      "mean": 69.81188875999997,
+      "median": 66.11255900000015,
+      "p10": 45.93329100000028,
+      "p90": 95.55815500000017,
+      "stdDev": 21.031287259002436
+    },
+    "candidatesPerSecond": 14.324207778388725
+  },
+  "wordCount": {
+    "total": {
+      "min": 68,
+      "max": 544,
+      "mean": 236.09,
+      "median": 221,
+      "p10": 156,
+      "p90": 341,
+      "stdDev": 77.16904755146328
+    },
+    "playerRelevant_5plus": {
+      "min": 6,
+      "max": 253,
+      "mean": 58.36,
+      "median": 51,
+      "p10": 18,
+      "p90": 117,
+      "stdDev": 41.15471297433624
+    }
+  },
+  "diversity": {
+    "jaccardOnPlayerRelevantWordSets": {
+      "min": 0,
+      "max": 0.11428571428571428,
+      "mean": 0.0038179176667884535,
+      "median": 0,
+      "p10": 0,
+      "p90": 0.0136986301369863,
+      "stdDev": 0.008879082141254276
+    },
+    "levenshteinOnFlatBoard": {
+      "min": 17,
+      "max": 25,
+      "mean": 22.12161616161616,
+      "median": 22,
+      "p10": 20,
+      "p90": 24,
+      "stdDev": 1.3027389228671002
+    },
+    "jaccardSamples": 4950,
+    "levSamples": 4950
+  },
+  "structural": {
+    "distinctVowelMultisets": 95,
+    "vowelMultisetEntropyBits": 6.536307314753104,
+    "vowelCount": {
+      "min": 4,
+      "max": 15,
+      "mean": 9.31,
+      "median": 9,
+      "p10": 7,
+      "p90": 12,
+      "stdDev": 2.1986131992690296
+    },
+    "letterCoverage": 26,
+    "lettersNeverSeen": [],
+    "letterFrequencies": {
+      "a": 0.0808,
+      "b": 0.014,
+      "c": 0.028,
+      "d": 0.0352,
+      "e": 0.1172,
+      "f": 0.0228,
+      "g": 0.0196,
+      "h": 0.068,
+      "i": 0.0768,
+      "j": 0.0008,
+      "k": 0.0088,
+      "l": 0.04,
+      "m": 0.0184,
+      "n": 0.068,
+      "o": 0.0724,
+      "p": 0.0268,
+      "q": 0.0004,
+      "r": 0.0568,
+      "s": 0.0648,
+      "t": 0.0956,
+      "u": 0.0252,
+      "v": 0.0084,
+      "w": 0.0284,
+      "x": 0.0008,
+      "y": 0.0216,
+      "z": 0.0004
+    },
+    "bigramCoverage": 274,
+    "bigramCoverageMaxPossible": 351
+  },
+  "sampleBoards": [
+    {
+      "board": "pndvaeaitratdlaardipaerrq",
+      "totalWords": 245,
+      "fivePlusWords": 61,
+      "sampleLongWords": [
+        "adder",
+        "aerate",
+        "aerial",
+        "aider",
+        "aired",
+        "alder",
+        "altar",
+        "anita",
+        "apnea",
+        "april",
+        "arvin",
+        "avian"
+      ]
+    },
+    {
+      "board": "tihfslgnolhrrnaecwroopoao",
+      "totalWords": 153,
+      "fivePlusWords": 22,
+      "sampleLongWords": [
+        "along",
+        "annos",
+        "coral",
+        "corona",
+        "epoch",
+        "errol",
+        "foals",
+        "force",
+        "groan",
+        "higher",
+        "honor",
+        "lorna"
+      ]
+    },
+    {
+      "board": "iorrwelchodtdydyadlamtyde",
+      "totalWords": 151,
+      "fivePlusWords": 18,
+      "sampleLongWords": [
+        "addle",
+        "addled",
+        "coiled",
+        "coldly",
+        "daddy",
+        "dated",
+        "deadly",
+        "delay",
+        "delta",
+        "doyle",
+        "madly",
+        "match"
+      ]
+    },
+    {
+      "board": "ttaietcyeiramiehoetasnuto",
+      "totalWords": 254,
+      "fivePlusWords": 58,
+      "sampleLongWords": [
+        "aeons",
+        "attar",
+        "attract",
+        "attune",
+        "cameo",
+        "cameos",
+        "carom",
+        "catty",
+        "croat",
+        "crone",
+        "eaten",
+        "eunomy"
+      ]
+    },
+    {
+      "board": "ereistbeiasmvnednndhsrtos",
+      "totalWords": 185,
+      "fivePlusWords": 36,
+      "sampleLongWords": [
+        "annos",
+        "bends",
+        "beret",
+        "berets",
+        "brevia",
+        "brevis",
+        "denier",
+        "denis",
+        "denver",
+        "donna",
+        "donnas",
+        "easier"
+      ]
+    }
+  ]
+}

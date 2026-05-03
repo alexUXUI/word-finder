@@ -157,19 +157,17 @@ export const updatePath = ({
   } else if (lastCharInPath && !isInSelectedChars) {
     const { index } = lastCharInPath;
     const { boardSize } = boardState;
-    const neighbors = [
-      index - boardSize - 1,
-      index - boardSize,
-      index - boardSize + 1,
-      index - 1,
-      index + 1,
-      index + boardSize - 1,
-      index + boardSize,
-      index + boardSize + 1,
-    ];
-    const isNeighbor = Boolean(
-      neighbors.filter((idx: number) => idx === currentIndex).length
-    );
+    // 8-neighbor adjacency in (row, col) space — index arithmetic alone wraps
+    // at row boundaries (e.g. index+1 from a right-edge cell crosses into the
+    // next row's left edge), so check coordinates explicitly.
+    const lastRow = Math.floor(index / boardSize);
+    const lastCol = index % boardSize;
+    const currentRow = Math.floor(currentIndex / boardSize);
+    const currentCol = currentIndex % boardSize;
+    const isNeighbor =
+      Math.abs(lastRow - currentRow) <= 1 &&
+      Math.abs(lastCol - currentCol) <= 1 &&
+      !(lastRow === currentRow && lastCol === currentCol);
     if (isNeighbor) {
       gameState.selectedChars = [
         ...gameState.selectedChars,
@@ -213,16 +211,83 @@ export const updatePath = ({
   }
 };
 
+/**
+ * English letter frequencies (approximate, from typical English text corpora).
+ * Source-of-truth for English board generation. Replaces the buggy
+ * englishVowels/englishConsonants arrays which omitted `o` and `u` and
+ * misclassified `s` as a vowel.
+ */
+export const ENGLISH_LETTER_FREQUENCY: Readonly<Record<string, number>> = {
+  a: 8.2,
+  b: 1.5,
+  c: 2.8,
+  d: 4.3,
+  e: 12.7,
+  f: 2.2,
+  g: 2.0,
+  h: 6.1,
+  i: 7.0,
+  j: 0.15,
+  k: 0.77,
+  l: 4.0,
+  m: 2.4,
+  n: 6.7,
+  o: 7.5,
+  p: 1.9,
+  q: 0.095,
+  r: 6.0,
+  s: 6.3,
+  t: 9.1,
+  u: 2.8,
+  v: 0.98,
+  w: 2.4,
+  x: 0.15,
+  y: 2.0,
+  z: 0.074,
+};
+
+/**
+ * Sample N letters with replacement from a weighted frequency table.
+ * Each letter is drawn independently — counts vary across calls.
+ */
+export const sampleFromFrequency = (
+  freqs: Readonly<Record<string, number>>,
+  count: number
+): string[] => {
+  const entries = Object.entries(freqs);
+  const total = entries.reduce((s, [, w]) => s + w, 0);
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    let r = Math.random() * total;
+    for (const [letter, w] of entries) {
+      r -= w;
+      if (r <= 0) {
+        out.push(letter);
+        break;
+      }
+    }
+  }
+  return out;
+};
+
+/**
+ * Legacy entry point used by SSR and Controls.tsx. Mirrors the
+ * `frequency-weighted` strategy for English/Spanish and the `legacy-russian`
+ * strategy for Russian. New callers should use the strategy registry
+ * (`src/components/boggle/generation/registry.ts`) directly so they can pick
+ * a specific strategy and capture metadata.
+ */
 export const randomBoard = (language: LanguageType, length: number): string => {
+  const lengthSquared = length * length;
   switch (language) {
-    case Language.English:
-      return generateRandomBoard(length, Language.English);
-    case Language.Spanish:
-      return generateRandomBoard(length, Language.Spanish);
     case Language.Russian:
       return generateRandomBoard(length, Language.Russian);
+    case Language.English:
+    case Language.Spanish:
     default:
-      return generateRandomBoard(length, Language.English);
+      return sampleFromFrequency(ENGLISH_LETTER_FREQUENCY, lengthSquared).join(
+        ''
+      );
   }
 };
 

@@ -1,0 +1,210 @@
+{
+  "config": {
+    "N_BOARDS": 100,
+    "SIZE": 5,
+    "MIN_WORD_LEN": 5,
+    "dictUrl": "https://boggle.pages.dev/engmix.txt",
+    "dictSize": 84099,
+    "runAt": "2026-05-03T19:25:10.751Z",
+    "label": "phase1.3-strategy-abstraction",
+    "gitSha": "6a928da"
+  },
+  "timing": {
+    "generationTotalMs": 8.428485000000023,
+    "generationPerBoardMs": 0.08428485000000023,
+    "solve": {
+      "min": 40.67229899999984,
+      "max": 98.10223799999994,
+      "mean": 57.896746419999964,
+      "median": 56.831985999999915,
+      "p10": 43.299986999999874,
+      "p90": 71.6343109999998,
+      "stdDev": 11.921483497686987
+    },
+    "candidatesPerSecond": 17.27212774178547
+  },
+  "wordCount": {
+    "total": {
+      "min": 89,
+      "max": 420,
+      "mean": 228.15,
+      "median": 220,
+      "p10": 147,
+      "p90": 318,
+      "stdDev": 69.01642920348748
+    },
+    "playerRelevant_5plus": {
+      "min": 6,
+      "max": 159,
+      "mean": 54.42,
+      "median": 47,
+      "p10": 18,
+      "p90": 105,
+      "stdDev": 34.493529828070656
+    }
+  },
+  "diversity": {
+    "jaccardOnPlayerRelevantWordSets": {
+      "min": 0,
+      "max": 0.17083333333333334,
+      "mean": 0.004394216902639119,
+      "median": 0,
+      "p10": 0,
+      "p90": 0.01507537688442211,
+      "stdDev": 0.01042869834051466
+    },
+    "levenshteinOnFlatBoard": {
+      "min": 16,
+      "max": 25,
+      "mean": 22.233333333333334,
+      "median": 22,
+      "p10": 21,
+      "p90": 24,
+      "stdDev": 1.3131425795942384
+    },
+    "jaccardSamples": 4950,
+    "levSamples": 4950
+  },
+  "structural": {
+    "distinctVowelMultisets": 99,
+    "vowelMultisetEntropyBits": 6.623856189774739,
+    "vowelCount": {
+      "min": 5,
+      "max": 15,
+      "mean": 9.33,
+      "median": 9,
+      "p10": 7,
+      "p90": 13,
+      "stdDev": 2.2273526887316244
+    },
+    "letterCoverage": 26,
+    "lettersNeverSeen": [],
+    "letterFrequencies": {
+      "a": 0.0908,
+      "b": 0.0156,
+      "c": 0.0292,
+      "d": 0.0432,
+      "e": 0.1244,
+      "f": 0.0196,
+      "g": 0.0188,
+      "h": 0.0608,
+      "i": 0.0644,
+      "j": 0.0016,
+      "k": 0.0104,
+      "l": 0.0436,
+      "m": 0.0236,
+      "n": 0.0708,
+      "o": 0.0664,
+      "p": 0.0168,
+      "q": 0.0008,
+      "r": 0.0572,
+      "s": 0.068,
+      "t": 0.0872,
+      "u": 0.0272,
+      "v": 0.0064,
+      "w": 0.0252,
+      "x": 0.0032,
+      "y": 0.0244,
+      "z": 0.0004
+    },
+    "bigramCoverage": 295,
+    "bigramCoverageMaxPossible": 351
+  },
+  "sampleBoards": [
+    {
+      "board": "ililcakwhsssewleshudhttss",
+      "totalWords": 135,
+      "fivePlusWords": 32,
+      "sampleLongWords": [
+        "alike",
+        "ashes",
+        "askew",
+        "asses",
+        "asset",
+        "assets",
+        "chess",
+        "chest",
+        "chests",
+        "chews",
+        "chili",
+        "dusts"
+      ]
+    },
+    {
+      "board": "rereuhhinehreiieenietufdt",
+      "totalWords": 139,
+      "fivePlusWords": 39,
+      "sampleLongWords": [
+        "detinet",
+        "detinue",
+        "diner",
+        "eerie",
+        "eerier",
+        "ernie",
+        "fidei",
+        "fiend",
+        "fieri",
+        "fierier",
+        "finer",
+        "fundi"
+      ]
+    },
+    {
+      "board": "twbhmgcheakdaapnuhnsorray",
+      "totalWords": 176,
+      "fivePlusWords": 29,
+      "sampleLongWords": [
+        "ahead",
+        "auras",
+        "beach",
+        "beans",
+        "canap",
+        "canape",
+        "canaps",
+        "chapeau",
+        "chaps",
+        "cheam",
+        "cheap",
+        "dacha"
+      ]
+    },
+    {
+      "board": "igehhetdhseigtlnaatyetswe",
+      "totalWords": 201,
+      "fivePlusWords": 56,
+      "sampleLongWords": [
+        "again",
+        "agate",
+        "detinet",
+        "detinets",
+        "diane",
+        "dints",
+        "eaten",
+        "eight",
+        "eighty",
+        "gaited",
+        "giant",
+        "giants"
+      ]
+    },
+    {
+      "board": "sttinrcogevfloeahndthbhnw",
+      "totalWords": 188,
+      "fivePlusWords": 38,
+      "sampleLongWords": [
+        "afoot",
+        "clots",
+        "clotting",
+        "cogit",
+        "cologne",
+        "colon",
+        "cooed",
+        "flocs",
+        "flood",
+        "footed",
+        "geode",
+        "igloo"
+      ]
+    }
+  ]
+}

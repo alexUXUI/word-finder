@@ -11,6 +11,9 @@ import {
 import { Controls } from './controls/Controls';
 import { WordsPanel } from './controls/WordsPanel';
 import { BoggleBoard } from './board/Board';
+import { SmartBanner } from './intelligence/SmartBanner';
+import { VersionFooter } from './VersionFooter';
+import { installVersionGlobals } from '../../version';
 import { calculateCellWidth, handleFoundWord } from './logic/board';
 import {
   DictionaryCtx,
@@ -18,7 +21,9 @@ import {
   GameCtx,
   AnswersCtx,
   WorkerCtx,
+  SmartCtx,
 } from './context';
+import type { SmartState } from './context';
 import BoggleWorker from './worker?worker';
 
 import type {
@@ -74,6 +79,20 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
     foundWord: null,
   });
 
+  const smartState = useStore<SmartState>({
+    // Smart Mode is the default. The model itself is *not* downloaded
+    // until the first Reset Board click — until then the SSR board stands
+    // and the toggle simply reads "Smart Mode: ON".
+    enabled: true,
+    modelStatus: 'idle',
+    modelLoadProgress: 0,
+    generationStatus: 'idle',
+    narration: [],
+    liveTokens: '',
+    bannerDismissed: false,
+    refs: {},
+  });
+
   useOnWindow(
     'DOMContentLoaded',
     $(() => {
@@ -98,6 +117,12 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
       const wowAudioFile = '/wow.mp3';
       const audio = new Audio(wowAudioFile);
       audioState.foundWord = audio;
+
+      // Wire version metadata into discoverable surfaces:
+      //   - window.__APP_VERSION__
+      //   - localStorage["word-finder.version"]
+      //   - DevTools console banner
+      installVersionGlobals();
     })
   );
 
@@ -126,13 +151,16 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
   useContextProvider(GameCtx, gameState);
   useContextProvider(AnswersCtx, answersState);
   useContextProvider(WorkerCtx, workerState);
+  useContextProvider(SmartCtx, smartState);
 
   return (
     <div class="h-[100%] dont-scroll">
       <Controls />
+      <SmartBanner />
       <UserGameStats />
       <BoggleBoard />
       <WordsPanel />
+      <VersionFooter />
     </div>
   );
 });

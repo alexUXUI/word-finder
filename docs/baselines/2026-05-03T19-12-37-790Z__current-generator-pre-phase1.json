@@ -1,0 +1,211 @@
+{
+  "config": {
+    "N_BOARDS": 100,
+    "SIZE": 5,
+    "MIN_WORD_LEN": 5,
+    "dictUrl": "https://boggle.pages.dev/engmix.txt",
+    "dictSize": 84099,
+    "runAt": "2026-05-03T19:12:37.790Z",
+    "label": "current-generator-pre-phase1",
+    "gitSha": "69b28bc"
+  },
+  "timing": {
+    "generationTotalMs": 2.8441150000001016,
+    "generationPerBoardMs": 0.028441150000001015,
+    "solve": {
+      "min": 51.20882900000015,
+      "max": 84.05716500000017,
+      "mean": 63.61878987999995,
+      "median": 63.0052569999998,
+      "p10": 54.41850399999976,
+      "p90": 73.77155599999969,
+      "stdDev": 7.174478046480513
+    },
+    "candidatesPerSecond": 15.718626554925612
+  },
+  "wordCount": {
+    "total": {
+      "min": 136,
+      "max": 487,
+      "mean": 325.35,
+      "median": 316,
+      "p10": 243,
+      "p90": 426,
+      "stdDev": 74.23696855341008
+    },
+    "playerRelevant_5plus": {
+      "min": 8,
+      "max": 189,
+      "mean": 91.49,
+      "median": 89,
+      "p10": 49,
+      "p90": 152,
+      "stdDev": 40.59174669806658
+    }
+  },
+  "diversity": {
+    "jaccardOnPlayerRelevantWordSets": {
+      "min": 0,
+      "max": 0.14624505928853754,
+      "mean": 0.015600757286299215,
+      "median": 0.0111731843575419,
+      "p10": 0,
+      "p90": 0.037037037037037035,
+      "stdDev": 0.016598543794121602
+    },
+    "levenshteinOnFlatBoard": {
+      "min": 15,
+      "max": 25,
+      "mean": 21.10969696969697,
+      "median": 21,
+      "p10": 19,
+      "p90": 23,
+      "stdDev": 1.3212661929441236
+    },
+    "jaccardSamples": 4950,
+    "levSamples": 4950
+  },
+  "structural": {
+    "distinctVowelMultisets": 1,
+    "vowelMultisetEntropyBits": 0,
+    "vowelCount": {
+      "min": 10,
+      "max": 10,
+      "mean": 10,
+      "median": 10,
+      "p10": 10,
+      "p90": 10,
+      "stdDev": 0
+    },
+    "letterCoverage": 24,
+    "lettersNeverSeen": [
+      "o",
+      "u"
+    ],
+    "letterFrequencies": {
+      "a": 0.12,
+      "b": 0.0384,
+      "c": 0.0348,
+      "d": 0.0384,
+      "e": 0.2,
+      "f": 0.0364,
+      "g": 0.0364,
+      "h": 0.0372,
+      "i": 0.08,
+      "j": 0.0036,
+      "k": 0.0076,
+      "l": 0.0384,
+      "m": 0.0388,
+      "n": 0.0372,
+      "p": 0.0372,
+      "q": 0.0052,
+      "r": 0.0376,
+      "s": 0.08,
+      "t": 0.0348,
+      "v": 0.0036,
+      "w": 0.0344,
+      "x": 0.0028,
+      "y": 0.0116,
+      "z": 0.0056
+    },
+    "bigramCoverage": 255,
+    "bigramCoverageMaxPossible": 351
+  },
+  "sampleBoards": [
+    {
+      "board": "tserpmaheafnaebdlwicivese",
+      "totalWords": 302,
+      "fivePlusWords": 54,
+      "sampleLongWords": [
+        "alfas",
+        "alive",
+        "areas",
+        "bares",
+        "barest",
+        "behalf",
+        "behalves",
+        "behest",
+        "dives",
+        "eland",
+        "esher",
+        "flaws"
+      ]
+    },
+    {
+      "board": "eetabheplfmasnidsxawecrie",
+      "totalWords": 312,
+      "fivePlusWords": 63,
+      "sampleLongWords": [
+        "alias",
+        "arced",
+        "assail",
+        "assam",
+        "asset",
+        "balsa",
+        "balsam",
+        "balsams",
+        "balsas",
+        "bates",
+        "cessna",
+        "crass"
+      ]
+    },
+    {
+      "board": "wabysnlreeticamegideaehsf",
+      "totalWords": 379,
+      "fivePlusWords": 107,
+      "sampleLongWords": [
+        "abeam",
+        "abrade",
+        "abrades",
+        "acids",
+        "acres",
+        "aegis",
+        "aides",
+        "alice",
+        "alicia",
+        "antic",
+        "arcade",
+        "arcades"
+      ]
+    },
+    {
+      "board": "fapaehiezrwegselancsdietm",
+      "totalWords": 378,
+      "fivePlusWords": 123,
+      "sampleLongWords": [
+        "aegean",
+        "afield",
+        "agent",
+        "agents",
+        "ahead",
+        "alien",
+        "alienee",
+        "alienees",
+        "aliens",
+        "angel",
+        "arses",
+        "censer"
+      ]
+    },
+    {
+      "board": "eeebfaeapqglmndricssewtai",
+      "totalWords": 285,
+      "fivePlusWords": 57,
+      "sampleLongWords": [
+        "agile",
+        "agleam",
+        "alcms",
+        "algae",
+        "amica",
+        "astir",
+        "balmier",
+        "balms",
+        "bancs",
+        "bands",
+        "beams",
+        "beans"
+      ]
+    }
+  ]
+}

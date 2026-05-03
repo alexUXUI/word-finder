@@ -1,0 +1,41 @@
+{
+  "runAt": "2026-05-03T19:42:59.945Z",
+  "label": "eval-v1",
+  "gitSha": "5adc929",
+  "weightedMean": 1,
+  "goals": [
+    {
+      "id": "classic-boggle",
+      "weight": 0.5,
+      "runs": 15,
+      "metrics": {
+        "playerRelevantWords.mean": 197,
+        "playerRelevantWords.p10": 170,
+        "playerRelevantWords.p90": 238,
+        "maxWordLength.mean": 7.866666666666666,
+        "wordsByLength.>=8.mean": 1.7333333333333334,
+        "meanElapsedMs": 97.61369173333337,
+        "vowelInventoryEntropyBits": 3.906890595608518,
+        "letterCoverage": 20
+      },
+      "checks": {
+        "playerRelevantWords.mean": {
+          "pass": true,
+          "expr": ">= 60",
+          "value": 197
+        },
+        "playerRelevantWords.p10": {
+          "pass": true,
+          "expr": ">= 30",
+          "value": 170
+        },
+        "meanElapsedMs": {
+          "pass": true,
+          "expr": "<= 2000",
+          "value": 97.61369173333337
+        }
+      },
+      "pass": true
+    }
+  ]
+}
