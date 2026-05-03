@@ -18,7 +18,9 @@ type ReqArgs = {
 
 export const gameConfig = {
   boardSize: 5,
-  minCharLength: 3,
+  // Default to 5+ letter words — that's the gameplay we optimize for.
+  // Override per-request via ?min=N.
+  minCharLength: 5,
   language: Language.English,
 };
 

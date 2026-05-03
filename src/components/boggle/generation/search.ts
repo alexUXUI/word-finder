@@ -36,6 +36,17 @@ export interface SearchConfig {
   generationId?: string;
   /** Goal signature for trace partitioning. Free-form string; convention: "size=5;min=5;style=balanced". */
   goalSignature?: string;
+  /**
+   * Fired after each candidate is scored. Use for live progress UI.
+   * Cheap — one function call per candidate, no allocation if undefined.
+   */
+  onCandidate?: (info: {
+    index: number;
+    total: number;
+    finalScore: number;
+    bestScore: number;
+    playerRelevantWords: number;
+  }) => void;
 }
 
 export type SearchStopReason = 'target-met' | 'max-candidates' | 'max-ms';

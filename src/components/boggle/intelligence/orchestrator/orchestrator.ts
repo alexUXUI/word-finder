@@ -86,14 +86,23 @@ export class Orchestrator {
     root.setAttribute('goal_signature', goalSignature(goal));
     root.setInputs(goal);
 
+    const cb = this.config.callbacks ?? {};
     let modelCalls = 0;
     try {
+      cb.onNarrate?.('🎯 Goal received; preparing the model.');
+
       // Step 1 — SLM picks strategy.
+      cb.onNarrate?.('🤔 Asking the model which strategy to use…');
       const strategyChosen = await this.pickStrategy(goal, handle, root);
       modelCalls++;
+      cb.onNarrate?.(`💡 Strategy chosen: ${strategyChosen}`);
 
       // Step 2 — search engine runs with goal-derived weights.
       const styleWeights = this.tools.weightsForStyle?.(goal.style) ?? {};
+      const maxCandidates = this.config.budget?.maxCandidates ?? 75;
+      cb.onNarrate?.(
+        `🔍 Searching: best-of-${maxCandidates} candidates with ${goal.style ?? 'balanced'} weights…`
+      );
       const searchSpan = handle.startSpan('tool.search', 'TOOL', root);
       searchSpan.setInputs({ strategy: strategyChosen, goal });
       const strategy = getStrategy(strategyChosen);
@@ -103,13 +112,17 @@ export class Orchestrator {
         minWordLength: goal.minWordLength,
         dictionary: [...dictionary],
         strategy,
-        maxCandidates: this.config.budget?.maxCandidates ?? 75,
+        maxCandidates,
         maxMs: this.config.budget?.maxSearchMs ?? 5000,
         scoreWeights: { ...DEFAULT_WEIGHTS, ...styleWeights } as Partial<ScoreWeights>,
+        onCandidate: cb.onSearchProgress,
         // Tracer NOT passed through — orchestrator owns the trace; the search
         // engine gets a no-op tracer so we don't double-count the work in
         // MLflow as two parallel traces.
       } as SearchConfig);
+      cb.onNarrate?.(
+        `📊 Search done: ${searchResult.candidatesEvaluated} candidates, picked board with ${searchResult.score.playerRelevantWords} ${goal.minWordLength}+ letter words (max ${searchResult.score.maxWordLength}).`
+      );
       searchSpan.setAttribute('candidates_evaluated', searchResult.candidatesEvaluated);
       searchSpan.setAttribute('reason', searchResult.reason);
       searchSpan.setAttribute('strategy', searchResult.strategyUsed);
@@ -122,6 +135,7 @@ export class Orchestrator {
       searchSpan.end();
 
       // Step 3 — SLM explains why the board is good.
+      cb.onNarrate?.('💬 Asking the model to explain why this board is fun…');
       const explanation = await this.explainBoard(
         goal,
         searchResult.board,
@@ -132,6 +146,7 @@ export class Orchestrator {
         root
       );
       modelCalls++;
+      cb.onNarrate?.('✅ Done.');
 
       const elapsedMs = performance.now() - t0;
       root.setAttribute('model_calls', modelCalls);
@@ -203,6 +218,8 @@ export class Orchestrator {
     })}\nWhich strategy? Reply with one of: ${strategies.join(', ')}`;
     span.setInputs({ system: sys, user: userMsg });
 
+    const cb = this.config.callbacks ?? {};
+    let acc = '';
     const response = await this.config.model.generate({
       messages: [
         { role: 'system', content: sys },
@@ -210,6 +227,12 @@ export class Orchestrator {
       ],
       maxTokens: 24,
       temperature: 0.1,
+      onToken: cb.onTokenStream
+        ? (chunk) => {
+            acc += chunk;
+            cb.onTokenStream!(chunk, acc);
+          }
+        : undefined,
     });
     span.setAttribute('elapsed_ms', response.elapsedMs);
     span.setAttribute('output_text', response.text);
@@ -246,6 +269,8 @@ export class Orchestrator {
     ].join('\n');
     span.setInputs({ system: EXPLAIN_SYSTEM, user: userMsg });
 
+    const cb = this.config.callbacks ?? {};
+    let acc = '';
     const response = await this.config.model.generate({
       messages: [
         { role: 'system', content: EXPLAIN_SYSTEM },
@@ -253,6 +278,12 @@ export class Orchestrator {
       ],
       maxTokens: 96,
       temperature: 0.4,
+      onToken: cb.onTokenStream
+        ? (chunk) => {
+            acc += chunk;
+            cb.onTokenStream!(chunk, acc);
+          }
+        : undefined,
     });
     span.setAttribute('elapsed_ms', response.elapsedMs);
     span.setOutputs({ explanation: response.text });

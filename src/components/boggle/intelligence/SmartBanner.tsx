@@ -29,7 +29,7 @@ export const SmartBanner = component$(() => {
       data-testid="smart-banner"
       class="m-auto px-3 my-2 max-w-[420px] text-[13px]"
     >
-      {(isLoading || isGenerating) && (
+      {isLoading && (
         <div
           data-testid="smart-banner-status"
           class="rounded-md bg-blue-50 border border-blue-200 px-3 py-2 my-1"
@@ -39,11 +39,47 @@ export const SmartBanner = component$(() => {
             class="rounded-full bg-blue-500"
             style={`width:${Math.max(8, Math.min(40, smart.modelLoadProgress * 0.4))}px;height:8px;transition:width 0.2s;`}
           />
-          <span>
-            {isLoading
-              ? `Loading SLM (${Math.round(smart.modelLoadProgress)}%)…`
-              : `Generating · ${smart.generationStage ?? 'thinking'}`}
-          </span>
+          <span>Loading SLM ({Math.round(smart.modelLoadProgress)}%)…</span>
+        </div>
+      )}
+      {isGenerating && (
+        <div
+          data-testid="smart-banner-narration"
+          class="rounded-md bg-blue-50 border border-blue-200 px-3 py-2 my-1"
+          style="font-family: ui-monospace, monospace; font-size: 12px;"
+        >
+          <ul style="list-style:none; margin:0; padding:0;">
+            {smart.narration.map((line, i) => (
+              <li key={i} data-testid="narration-line" style="line-height:1.5;">
+                {line}
+              </li>
+            ))}
+          </ul>
+          {smart.searchProgress && (
+            <div
+              data-testid="search-progress"
+              style="margin-top:6px; display:flex; align-items:center; gap:6px;"
+            >
+              <div
+                style={`width: ${(smart.searchProgress.index / smart.searchProgress.total) * 200}px; height:6px; background:#3b82f6; border-radius:3px; transition:width 0.1s;`}
+              />
+              <span style="color:#456;">
+                {smart.searchProgress.index}/{smart.searchProgress.total} · best{' '}
+                {smart.searchProgress.bestScore.toFixed(0)}
+              </span>
+            </div>
+          )}
+          {smart.liveTokens && (
+            <div
+              data-testid="live-tokens"
+              style="margin-top:6px; padding:6px 8px; background:#fff; border-left:3px solid #3b82f6; white-space:pre-wrap; font-style:italic; color:#234;"
+            >
+              {smart.liveTokens}
+              <span style="display:inline-block; width:6px; height:14px; background:#3b82f6; margin-left:2px; vertical-align:middle; animation: blink 1s step-end infinite;">
+                &nbsp;
+              </span>
+            </div>
+          )}
         </div>
       )}
       {smart.modelLoadError && (

@@ -23,6 +23,11 @@ export interface GenerateRequest {
   jsonOnly?: boolean;
   /** Optional abort signal to cancel the call. */
   signal?: AbortSignal;
+  /**
+   * Per-chunk streaming callback. Fired as the model decodes new tokens.
+   * The argument is the *new* text since the last call (not cumulative).
+   */
+  onToken?: (chunk: string) => void;
 }
 
 export interface GenerateResponse {

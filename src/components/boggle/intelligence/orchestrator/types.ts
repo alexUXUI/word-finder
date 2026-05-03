@@ -43,11 +43,36 @@ export interface ToolRegistry {
   weightsForStyle?(style: BoardGenerationGoal['style']): Partial<ScoreWeights>;
 }
 
+export interface OrchestratorCallbacks {
+  /**
+   * Step-level narration. Fires once per major event with a short
+   * human-readable line (e.g. "🤔 Asking model which strategy to use").
+   */
+  onNarrate?: (line: string) => void;
+  /**
+   * Per-token streaming during model calls. Fires repeatedly with
+   * (chunk, accumulator) — chunk is the new text since the last call;
+   * accumulator is the full text so far for the current model step.
+   */
+  onTokenStream?: (chunk: string, accumulator: string) => void;
+  /**
+   * Search progress callback. Fires after each candidate evaluation
+   * with running counts and best score so far.
+   */
+  onSearchProgress?: (info: {
+    index: number;
+    total: number;
+    bestScore: number;
+    playerRelevantWords: number;
+  }) => void;
+}
+
 export interface OrchestratorConfig {
   model: LocalModelProvider;
   tracer: Tracer;
   tools: ToolRegistry;
   budget?: OrchestratorBudget;
+  callbacks?: OrchestratorCallbacks;
 }
 
 export interface OrchestratorResult {

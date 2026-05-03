@@ -85,6 +85,8 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
     modelStatus: 'idle',
     modelLoadProgress: 0,
     generationStatus: 'idle',
+    narration: [],
+    liveTokens: '',
     bannerDismissed: false,
     refs: {},
   });

@@ -137,6 +137,9 @@ export const Controls = component$(() => {
       smart.generationStage = 'planning';
       smart.bannerDismissed = false;
       smart.lastExplanation = undefined;
+      smart.narration = [];
+      smart.liveTokens = '';
+      smart.searchProgress = undefined;
       try {
         const { Orchestrator } = await import(
           '../intelligence/orchestrator'
@@ -159,6 +162,30 @@ export const Controls = component$(() => {
           tracer,
           tools: { availableStrategies: ['frequency-weighted'] },
           budget: { maxCandidates: 75, maxSearchMs: 5000 },
+          callbacks: {
+            onNarrate: (line) => {
+              smart.narration = [...smart.narration, line];
+              // New step → reset the live-token stream so the next model
+              // call starts with a clean slate. Keeps narration readable.
+              smart.liveTokens = '';
+              if (line.startsWith('🤔') || line.startsWith('🔍')) {
+                smart.generationStage = line;
+              } else if (line.startsWith('💬')) {
+                smart.generationStage = 'explaining';
+              }
+            },
+            onTokenStream: (_chunk, accumulator) => {
+              smart.liveTokens = accumulator;
+            },
+            onSearchProgress: (info) => {
+              smart.searchProgress = {
+                index: info.index,
+                total: info.total,
+                bestScore: info.bestScore,
+                playerRelevantWords: info.playerRelevantWords,
+              };
+            },
+          },
         });
         smart.generationStage = 'generating';
         const result = await orchestrator.generateBoard(

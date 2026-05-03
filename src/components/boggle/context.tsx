@@ -24,6 +24,17 @@ export interface SmartState {
   modelLoadError?: string;
   generationStatus: SmartGenerationStatus;
   generationStage?: string;
+  /** Per-generation narration log — populated by orchestrator callbacks. */
+  narration: string[];
+  /** Currently-streaming model output (replaces on every new model call). */
+  liveTokens: string;
+  /** Search progress: {evaluated, total, bestScore}. */
+  searchProgress?: {
+    index: number;
+    total: number;
+    bestScore: number;
+    playerRelevantWords: number;
+  };
   lastExplanation?: string;
   lastStrategy?: string;
   lastFinalScore?: number;

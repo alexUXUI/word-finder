@@ -46,6 +46,8 @@ export class TransformersJsProvider implements LocalModelProvider {
     return this.generator !== null;
   }
 
+  private transformersModule: typeof import('@huggingface/transformers') | null = null;
+
   async load(onProgress?: (p: LoadProgress) => void): Promise<void> {
     if (this.generator) return;
     if (this.loadPromise) return this.loadPromise;
@@ -53,7 +55,9 @@ export class TransformersJsProvider implements LocalModelProvider {
     this.progressFn = onProgress;
     this.loadPromise = (async () => {
       onProgress?.({ file: '@huggingface/transformers', loaded: 0, status: 'importing' });
-      const { pipeline, env } = await import('@huggingface/transformers');
+      const transformers = await import('@huggingface/transformers');
+      this.transformersModule = transformers;
+      const { pipeline, env } = transformers;
       // Allow remote model downloads from the Hugging Face Hub. We don't
       // cache locally beyond the browser's IndexedDB / memfs cache; subsequent
       // page loads in the same browser reuse the cached weights.
@@ -120,17 +124,33 @@ export class TransformersJsProvider implements LocalModelProvider {
     const t0 = performance.now();
     // The Transformers.js text-generation pipeline accepts chat-formatted
     // messages directly when the tokenizer has a chat_template (Qwen's does).
+    const opts: Record<string, unknown> = {
+      max_new_tokens: req.maxTokens ?? 256,
+      temperature: req.temperature ?? 0.2,
+      do_sample: (req.temperature ?? 0.2) > 0,
+      return_full_text: false,
+    };
+    if (req.onToken && this.transformersModule) {
+      // Wire TextStreamer so each decoded chunk fires the callback as
+      // the model produces it.
+      const { TextStreamer } = this.transformersModule as unknown as {
+        TextStreamer: new (
+          tokenizer: unknown,
+          options: { skip_prompt?: boolean; callback_function?: (s: string) => void }
+        ) => unknown;
+      };
+      const tokenizer = (this.generator as { tokenizer: unknown }).tokenizer;
+      opts.streamer = new TextStreamer(tokenizer, {
+        skip_prompt: true,
+        callback_function: req.onToken,
+      });
+    }
     const out = await (
       this.generator as (
         msgs: readonly { role: string; content: string }[],
         opts: Record<string, unknown>
       ) => Promise<unknown>
-    )(req.messages, {
-      max_new_tokens: req.maxTokens ?? 256,
-      temperature: req.temperature ?? 0.2,
-      do_sample: (req.temperature ?? 0.2) > 0,
-      return_full_text: false,
-    });
+    )(req.messages, opts);
 
     const elapsedMs = performance.now() - t0;
     const arr = Array.isArray(out) ? (out as unknown[]) : [out];
