@@ -270,19 +270,21 @@ export const sampleFromFrequency = (
   return out;
 };
 
+/**
+ * Legacy entry point used by SSR and Controls.tsx. Mirrors the
+ * `frequency-weighted` strategy for English/Spanish and the `legacy-russian`
+ * strategy for Russian. New callers should use the strategy registry
+ * (`src/components/boggle/generation/registry.ts`) directly so they can pick
+ * a specific strategy and capture metadata.
+ */
 export const randomBoard = (language: LanguageType, length: number): string => {
   const lengthSquared = length * length;
   switch (language) {
     case Language.Russian:
-      // Russian still uses the legacy zip-based generator. Out of scope for
-      // this commit; fix when we add multi-language strategies.
       return generateRandomBoard(length, Language.Russian);
     case Language.English:
     case Language.Spanish:
     default:
-      // Independent per-cell sampling from the real English frequency
-      // distribution. No fixed vowel/consonant inventory, no positional
-      // alternation, no excluded letters.
       return sampleFromFrequency(ENGLISH_LETTER_FREQUENCY, lengthSquared).join(
         ''
       );
