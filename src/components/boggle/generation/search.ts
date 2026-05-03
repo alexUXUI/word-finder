@@ -95,16 +95,53 @@ export const searchForBoard = (config: SearchConfig): SearchResult => {
         reason = 'max-ms';
         break;
       }
+      // Per-candidate span — gives MLflow / dev tooling a clear timeline of
+      // every intermediate step inside a generation run.
+      const candidateSpan = traceHandle.startSpan(
+        `candidate.${candidatesEvaluated}`,
+        'TOOL',
+        span
+      );
+      const generateSpan = traceHandle.startSpan(
+        'tool.generate',
+        'TOOL',
+        candidateSpan
+      );
       const generated = strategy.generate({
         size: config.size,
         language: config.language,
       });
+      generateSpan.setAttribute('strategy', strategy.name);
+      generateSpan.setOutputs({ board: generated.board });
+      generateSpan.end();
+
+      const solveSpan = traceHandle.startSpan(
+        'tool.solve',
+        'TOOL',
+        candidateSpan
+      );
       const words = solveWithTrie(trie, generated.board.split(''));
+      solveSpan.setAttribute('total_words', words.length);
+      solveSpan.end();
+
+      const scoreSpan = traceHandle.startSpan(
+        'tool.score',
+        'TOOL',
+        candidateSpan
+      );
       const score = scoreBoard(generated.board, words, {
         minWordLength: config.minWordLength,
         recentBoards: config.recentBoards,
         weights: config.scoreWeights,
       });
+      scoreSpan.setAttribute('final_score', score.finalScore);
+      scoreSpan.setAttribute('player_relevant_words', score.playerRelevantWords);
+      scoreSpan.setAttribute('max_word_length', score.maxWordLength);
+      scoreSpan.end();
+
+      candidateSpan.setAttribute('final_score', score.finalScore);
+      candidateSpan.setAttribute('board', generated.board);
+      candidateSpan.end();
       candidatesEvaluated++;
 
       if (bestScore === null || score.finalScore > bestScore.finalScore) {

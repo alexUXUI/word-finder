@@ -27,6 +27,7 @@
     "test.unit.watch": "vitest",
     "bench": "vitest run --config vitest.bench.config.ts",
     "eval": "vitest run --config vitest.eval.config.ts",
+    "mlflow.proxy": "python3 tools/mlflow-proxy/server.py",
     "test.e2e": "playwright test",
     "test.e2e.headed": "playwright test --headed",
     "test.e2e.ui": "playwright test --ui",

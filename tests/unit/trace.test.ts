@@ -87,15 +87,23 @@ describe('searchForBoard with tracer', () => {
     expect(tracer.traces).toHaveLength(1);
     const t = tracer.traces[0];
     expect(t.goal_signature).toBe('unit-test');
-    expect(t.spans).toHaveLength(1);
-    const span = t.spans[0];
-    expect(span.type).toBe('TOOL');
-    expect(span.name).toBe('search.best-of-n');
-    expect(span.attributes).toMatchObject({
+    // Root span + per-candidate spans (each with 3 children: generate / solve / score).
+    // 5 candidates → 1 + 5 × (1 + 3) = 21 spans.
+    expect(t.spans.length).toBeGreaterThan(1);
+    const root = t.spans.find((s) => s.name === 'search.best-of-n');
+    expect(root).toBeDefined();
+    expect(root!.type).toBe('TOOL');
+    expect(root!.attributes).toMatchObject({
       strategy: 'frequency-weighted',
       max_candidates: 5,
       candidates_evaluated: 5,
     });
+    // Per-candidate detail.
+    const candidateSpans = t.spans.filter((s) => s.name.startsWith('candidate.'));
+    expect(candidateSpans).toHaveLength(5);
+    expect(t.spans.some((s) => s.name === 'tool.generate')).toBe(true);
+    expect(t.spans.some((s) => s.name === 'tool.solve')).toBe(true);
+    expect(t.spans.some((s) => s.name === 'tool.score')).toBe(true);
     expect(t.outcome.selected_strategy).toBe('frequency-weighted');
     expect(r.trace).toBe(t);
   });

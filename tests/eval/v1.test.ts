@@ -25,6 +25,8 @@ import { searchForBoard } from '../../src/components/boggle/generation/search';
 import { buildTrie } from '../../src/components/boggle/logic/trie';
 import { Language } from '../../src/components/boggle/models';
 import type { ScoreWeights } from '../../src/components/boggle/generation/scorer';
+import { MLflowTracer } from '../../src/components/boggle/generation/trace';
+import type { Tracer } from '../../src/components/boggle/generation/trace';
 
 const CACHE_PATH = 'node_modules/.cache/bench-dict-engmix.json';
 const DICT_URL = 'https://boggle.pages.dev/engmix.txt';
@@ -162,9 +164,21 @@ const checkTarget = (value: number, expr: string): { pass: boolean; expr: string
 const filterEnv = process.env.EVAL_GOALS?.split(',').map((s) => s.trim()).filter(Boolean) ?? [];
 const goalsToRun = filterEnv.length > 0 ? GOALS.filter((g) => filterEnv.includes(g.id)) : GOALS;
 
+// MLFLOW_TRACE=1 routes every search.run to the MLflow Tracking Server at
+// MLFLOW_OTLP_ENDPOINT (default http://localhost:5000/v1/traces).
+const useMlflow = process.env.MLFLOW_TRACE === '1';
+const tracer: Tracer | undefined = useMlflow
+  ? new MLflowTracer({ experimentName: 'word-finder-eval-v1' })
+  : undefined;
+
 it('eval suite v1', async () => {
   const dict = await loadDictionary();
   const trie = buildTrie(dict);
+  if (useMlflow) {
+    console.log(
+      `[eval] MLflow tracing enabled — POSTing to ${process.env.MLFLOW_OTLP_ENDPOINT ?? 'http://localhost:5000/v1/traces'}`
+    );
+  }
 
   const report: Array<{
     id: string;
@@ -193,6 +207,8 @@ it('eval suite v1', async () => {
         maxCandidates: g.config.maxCandidates,
         maxMs: g.config.maxMs,
         scoreWeights: g.config.scoreWeights,
+        tracer,
+        goalSignature: g.id,
       });
       playerRel.push(r.score.playerRelevantWords);
       maxLen.push(r.score.maxWordLength);
@@ -275,6 +291,13 @@ it('eval suite v1', async () => {
 
   console.log(`\nweighted-mean: ${weightedMean.toFixed(3)}`);
   console.log(`Wrote ${path}`);
+
+  // Flush MLflow exports before exit, otherwise async POSTs are dropped
+  // when vitest tears the process down.
+  if (tracer && tracer instanceof MLflowTracer) {
+    await tracer.flush();
+    console.log('[eval] MLflow exports flushed');
+  }
 
   // Assert all goals pass — vitest will fail the test if not.
   const failed = report.filter((r) => !r.pass).map((r) => r.id);
