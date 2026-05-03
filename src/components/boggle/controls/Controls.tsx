@@ -16,6 +16,7 @@ import {
   DictionaryCtx,
 } from '../context';
 import { randomBoard } from '../logic/board';
+import { SlmPicker } from './SlmPicker';
 
 export const Controls = component$(() => {
   const gameState = useContext(GameCtx);
@@ -79,12 +80,20 @@ export const Controls = component$(() => {
     smart.modelLoadProgress = 0;
     smart.modelLoadError = undefined;
     try {
-      const { TransformersJsProvider } = await import(
+      const { TransformersJsProvider, selectSlmTier } = await import(
         '../intelligence/local-model'
       );
       const { MLflowTracer, NoopTracer } = await import('../generation/trace');
+      const tier = selectSlmTier();
+      smart.slmTier = {
+        id: tier.id,
+        modelId: tier.modelId,
+        approxSizeMb: tier.approxSizeMb,
+        displayName: tier.displayName,
+        reason: tier.reason,
+      };
       const provider = new TransformersJsProvider({
-        modelId: 'onnx-community/Qwen2.5-0.5B-Instruct',
+        modelId: tier.modelId,
       });
       smart.refs.provider = noSerialize(provider);
 
@@ -256,6 +265,22 @@ export const Controls = component$(() => {
     smart.enabled = !smart.enabled;
   });
 
+  const handlePickModel = $(async (value: string) => {
+    if (smart.modelStatus === 'loading') return;
+    const { setSlmPreference } = await import(
+      '../intelligence/local-model'
+    );
+    setSlmPreference(value === 'auto' ? null : value);
+    // Drop the loaded provider so the next Reset re-loads with the new
+    // model. Status returns to idle; banner shows the new tier.
+    smart.refs.provider = undefined;
+    smart.refs.tracer = undefined;
+    smart.modelStatus = 'idle';
+    smart.modelLoadProgress = 0;
+    smart.modelLoadError = undefined;
+    smart.slmTier = undefined;
+  });
+
   const handleChangeLanguage = $((e: QwikChangeEvent<HTMLSelectElement>) => {
     const { value } = e.target;
     gameState.language = value;
@@ -410,25 +435,56 @@ export const Controls = component$(() => {
                 data-testid="smart-mode-toggle"
                 data-smart-enabled={smart.enabled ? 'true' : 'false'}
                 data-smart-model-status={smart.modelStatus}
+                data-slm-tier={smart.slmTier?.id ?? 'unselected'}
                 type="button"
                 onClick$={handleToggleSmartMode}
                 class="text-[13px] rounded-md border-2 border-blue-900 bg-white h-[36px] px-2"
               >
                 {smart.modelStatus === 'loading'
-                  ? `Loading model (${Math.round(smart.modelLoadProgress)}%)…`
+                  ? `Loading ${smart.slmTier?.displayName ?? 'model'} (${Math.round(smart.modelLoadProgress)}%)…`
                   : smart.modelStatus === 'error'
                   ? `Error: ${smart.modelLoadError ?? 'unknown'} (click to retry)`
                   : smart.enabled && smart.modelStatus === 'ready'
-                  ? '✨ Smart Mode: ON'
+                  ? `✨ Smart Mode: ON · ${smart.slmTier?.displayName ?? ''}`
                   : smart.enabled
                   ? '✨ Smart Mode: ON (model loads on first reset)'
                   : 'Smart Mode: OFF'}
               </button>
               {smart.enabled && smart.modelStatus === 'idle' && (
-                <span style="font-size:11px; color:#666; margin-top:2px;">
-                  Downloads ~786 MB Qwen2.5-0.5B once on first reset, then uses it locally.
+                <span
+                  data-testid="smart-mode-tier-hint"
+                  style="font-size:11px; color:#666; margin-top:2px;"
+                >
+                  On first reset, downloads the chosen SLM, then uses it
+                  locally. Smaller models are safer on mobile.
                 </span>
               )}
+              {smart.slmTier && smart.modelStatus === 'ready' && (
+                <span
+                  data-testid="smart-mode-tier-info"
+                  style="font-size:11px; color:#666; margin-top:2px;"
+                >
+                  Loaded: <strong>{smart.slmTier.displayName}</strong>
+                  {' '}({smart.slmTier.approxSizeMb} MB) — picked via {smart.slmTier.reason}
+                </span>
+              )}
+            </div>
+            <div class="flex flex-col my-[10px] w-full">
+              <label class="text-[14px] w-fit" for="slm-picker">
+                SLM Model
+              </label>
+              <SlmPicker
+                disabled={smart.modelStatus === 'loading'}
+                onPick$={handlePickModel}
+              />
+              <span
+                data-testid="slm-picker-hint"
+                style="font-size:11px; color:#666; margin-top:2px;"
+              >
+                Auto picks based on your device's User-Agent. Override to
+                test which models load on your phone — switching reloads
+                the model on the next Reset.
+              </span>
             </div>
           </fieldset>
         </form>
