@@ -49,5 +49,9 @@ working-state-*.png
 word-finder-*.png
 smart-mode-*.png
 
+# MLflow Tracking Server runtime data (local file backend used by `mlflow server`)
+/mlruns
+/mlartifacts
+
 # Benchmark "latest" pointer; versioned baselines under docs/baselines/ are committed
 docs/.benchmark-baseline.json
