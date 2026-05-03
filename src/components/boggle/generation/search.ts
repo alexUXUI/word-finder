@@ -5,6 +5,8 @@ import { defaultStrategyForLanguage } from './registry';
 import type { BoardStrategy } from './types';
 import { scoreBoard } from './scorer';
 import type { BoardScore, ScoreWeights } from './scorer';
+import { NoopTracer } from './trace';
+import type { GenerationTrace, Tracer } from './trace';
 
 export interface RecentBoardForSimilarity {
   board: string;
@@ -25,6 +27,15 @@ export interface SearchConfig {
   scoreWeights?: Partial<ScoreWeights>;
   /** Optional: pre-built trie. Caller responsibility to keep it consistent with dictionary. */
   prebuiltTrie?: ReturnType<typeof buildTrie>;
+  /**
+   * Optional tracer. When provided, search emits a TOOL-type span with
+   * candidate-count / score / strategy attributes. Default: NoopTracer.
+   */
+  tracer?: Tracer;
+  /** Identifier joined to player session post-hoc. Defaults to a fresh uuid-ish string. */
+  generationId?: string;
+  /** Goal signature for trace partitioning. Free-form string; convention: "size=5;min=5;style=balanced". */
+  goalSignature?: string;
 }
 
 export type SearchStopReason = 'target-met' | 'max-candidates' | 'max-ms';
@@ -38,6 +49,8 @@ export interface SearchResult {
   candidatesEvaluated: number;
   elapsedMs: number;
   reason: SearchStopReason;
+  /** Trace produced by the supplied tracer, if any. */
+  trace?: GenerationTrace;
 }
 
 /**
@@ -54,60 +67,104 @@ export const searchForBoard = (config: SearchConfig): SearchResult => {
   const maxCandidates = config.maxCandidates ?? 75;
   const maxMs = config.maxMs ?? 5000;
   const trie = config.prebuiltTrie ?? buildTrie([...config.dictionary]);
-  const t0 = performance.now();
+  const tracer: Tracer = config.tracer ?? NoopTracer;
+  const traceHandle = tracer.startTrace({
+    generation_id: config.generationId ?? `gen-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    goal_signature:
+      config.goalSignature ??
+      `size=${config.size};min=${config.minWordLength};lang=${config.language}`,
+  });
+  const span = traceHandle.startSpan('search.best-of-n', 'TOOL');
+  span.setAttribute('strategy', strategy.name);
+  span.setAttribute('max_candidates', maxCandidates);
+  span.setAttribute('max_ms', maxMs);
+  span.setAttribute('size', config.size);
+  span.setAttribute('min_word_length', config.minWordLength);
+  span.setAttribute('language', config.language);
 
+  const t0 = performance.now();
   let bestBoard = '';
   let bestScore: BoardScore | null = null;
   let bestWords: string[] = [];
   let candidatesEvaluated = 0;
   let reason: SearchStopReason = 'max-candidates';
 
-  while (candidatesEvaluated < maxCandidates) {
-    if (performance.now() - t0 > maxMs) {
-      reason = 'max-ms';
-      break;
+  try {
+    while (candidatesEvaluated < maxCandidates) {
+      if (performance.now() - t0 > maxMs) {
+        reason = 'max-ms';
+        break;
+      }
+      const generated = strategy.generate({
+        size: config.size,
+        language: config.language,
+      });
+      const words = solveWithTrie(trie, generated.board.split(''));
+      const score = scoreBoard(generated.board, words, {
+        minWordLength: config.minWordLength,
+        recentBoards: config.recentBoards,
+        weights: config.scoreWeights,
+      });
+      candidatesEvaluated++;
+
+      if (bestScore === null || score.finalScore > bestScore.finalScore) {
+        bestBoard = generated.board;
+        bestScore = score;
+        bestWords = words;
+      }
+
+      if (
+        config.targetScore !== undefined &&
+        score.finalScore >= config.targetScore
+      ) {
+        reason = 'target-met';
+        break;
+      }
     }
-    const generated = strategy.generate({
-      size: config.size,
-      language: config.language,
+
+    if (bestScore === null) {
+      throw new Error(
+        'searchForBoard requires maxCandidates >= 1; got 0 evaluations'
+      );
+    }
+
+    const elapsedMs = performance.now() - t0;
+    span.setAttribute('candidates_evaluated', candidatesEvaluated);
+    span.setAttribute('reason', reason);
+    span.setAttribute('best_final_score', bestScore.finalScore);
+    span.setAttribute('best_player_relevant_words', bestScore.playerRelevantWords);
+    span.setOutputs({
+      board: bestBoard,
+      finalScore: bestScore.finalScore,
+      playerRelevantWords: bestScore.playerRelevantWords,
     });
-    const words = solveWithTrie(trie, generated.board.split(''));
-    const score = scoreBoard(generated.board, words, {
-      minWordLength: config.minWordLength,
-      recentBoards: config.recentBoards,
-      weights: config.scoreWeights,
+    span.end();
+
+    const trace = traceHandle.finish({
+      final_score: bestScore.finalScore,
+      final_metrics: { ...bestScore },
+      elapsed_ms: elapsedMs,
+      candidates_evaluated: candidatesEvaluated,
+      model_calls: 0,
+      estimated_cost_usd: 0,
+      budget_exhausted: reason !== 'target-met',
+      selected_strategy: strategy.name,
     });
-    candidatesEvaluated++;
 
-    if (bestScore === null || score.finalScore > bestScore.finalScore) {
-      bestBoard = generated.board;
-      bestScore = score;
-      bestWords = words;
-    }
-
-    if (
-      config.targetScore !== undefined &&
-      score.finalScore >= config.targetScore
-    ) {
-      reason = 'target-met';
-      break;
-    }
+    return {
+      board: bestBoard,
+      score: bestScore,
+      words: bestWords,
+      strategyUsed: strategy.name,
+      candidatesEvaluated,
+      elapsedMs,
+      reason,
+      trace: tracer === NoopTracer ? undefined : trace,
+    };
+  } catch (e) {
+    const err = e as Error;
+    span.recordError({ message: err.message, stack: err.stack });
+    span.end();
+    throw e;
   }
-
-  // Loop guarantees at least one evaluation unless maxCandidates is 0; defend against that.
-  if (bestScore === null) {
-    throw new Error(
-      'searchForBoard requires maxCandidates >= 1; got 0 evaluations'
-    );
-  }
-
-  return {
-    board: bestBoard,
-    score: bestScore,
-    words: bestWords,
-    strategyUsed: strategy.name,
-    candidatesEvaluated,
-    elapsedMs: performance.now() - t0,
-    reason,
-  };
 };
