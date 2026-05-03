@@ -187,11 +187,18 @@ export const Controls = component$(() => {
         if (!dict.length) {
           throw new Error('Dictionary not loaded yet');
         }
+        // Budget scales with how aggressive the floor is. The floor input
+        // tells us what the player asked for, not what's typically
+        // achievable; harder targets need bigger search budget per
+        // attempt and more attempts overall to actually land.
+        const aggressiveFloor = gameState.minWordsPerBoard >= 200;
         const orchestrator = new Orchestrator({
           model: provider,
           tracer,
           tools: { availableStrategies: ['frequency-weighted'] },
-          budget: { maxCandidates: 200, maxSearchMs: 15000 },
+          budget: aggressiveFloor
+            ? { maxCandidates: 400, maxSearchMs: 25000 }
+            : { maxCandidates: 200, maxSearchMs: 15000 },
           callbacks: {
             onNarrate: (line) => {
               smart.narration = [...smart.narration, line];
@@ -225,7 +232,11 @@ export const Controls = component$(() => {
             style: 'long-word-heavy',
             difficulty: 'medium',
             minPlayerRelevantWords: gameState.minWordsPerBoard,
-            maxAttempts: 3,
+            // 5 attempts on aggressive floors, 3 otherwise — random sampling
+            // with mean ~190 and σ ~33 means the upper tail is reachable but
+            // takes more rolls. 5 × 400 candidates ≈ 95% chance of hitting
+            // 220+ vs ~60% with the old 3 × 200 setup.
+            maxAttempts: aggressiveFloor ? 5 : 3,
           },
           dict
         );
@@ -236,6 +247,10 @@ export const Controls = component$(() => {
         smart.lastFinalScore = result.score.finalScore;
         smart.lastModelCalls = result.modelCalls;
         smart.lastElapsedMs = result.elapsedMs;
+        smart.lastFloorMet = result.floorMet;
+        smart.lastAttempts = result.attemptsMade;
+        smart.lastFloorTarget = gameState.minWordsPerBoard;
+        smart.lastPlayerRelevantWords = result.score.playerRelevantWords;
         smart.generationStatus = 'complete';
         smart.generationStage = undefined;
         worker.mod?.postMessage({

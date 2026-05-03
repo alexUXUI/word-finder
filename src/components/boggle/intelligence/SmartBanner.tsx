@@ -90,6 +90,20 @@ export const SmartBanner = component$(() => {
           SLM error: {smart.modelLoadError}
         </div>
       )}
+      {showExplanation && smart.lastFloorMet === false && (
+        <div
+          data-testid="smart-banner-floor-warning"
+          class="rounded-md bg-amber-50 border-l-4 border-amber-500 px-3 py-2 my-1"
+          style="font-size: 12px; color: #855;"
+        >
+          ⚠️ Couldn't reach Min Words target of{' '}
+          <strong>{smart.lastFloorTarget}</strong> after {smart.lastAttempts} search
+          attempts. Best result: <strong>{smart.lastPlayerRelevantWords}</strong>{' '}
+          {(smart.lastFloorTarget ?? 0) > 200
+            ? '— that target is at the upper end of what random sampling typically produces. Try a lower Min Words, or wait for hill-climb search.'
+            : '— try Reset again, the search is randomized.'}
+        </div>
+      )}
       {showExplanation && (
         <div
           data-testid="smart-banner-explanation"
@@ -109,6 +123,7 @@ export const SmartBanner = component$(() => {
             ✨ {smart.lastStrategy} · score {smart.lastFinalScore?.toFixed?.(0) ?? smart.lastFinalScore}
             {smart.lastModelCalls !== undefined ? ` · ${smart.lastModelCalls} model calls` : ''}
             {smart.lastElapsedMs !== undefined ? ` · ${(smart.lastElapsedMs / 1000).toFixed(1)}s` : ''}
+            {smart.lastPlayerRelevantWords !== undefined ? ` · ${smart.lastPlayerRelevantWords} words` : ''}
           </div>
           <div data-testid="smart-banner-explanation-text" style="margin-top:4px;">
             {smart.lastExplanation}

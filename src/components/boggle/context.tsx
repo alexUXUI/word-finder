@@ -48,6 +48,14 @@ export interface SmartState {
   lastFinalScore?: number;
   lastModelCalls?: number;
   lastElapsedMs?: number;
+  /** True if the orchestrator hit the requested floor. False = honest fail. */
+  lastFloorMet?: boolean;
+  /** Number of search attempts the orchestrator ran. */
+  lastAttempts?: number;
+  /** The minWordsPerBoard floor that was active for the last generation. */
+  lastFloorTarget?: number;
+  /** Player-relevant words on the last generated board. */
+  lastPlayerRelevantWords?: number;
   /** True once the player has dismissed the current explanation banner. Reset on each new generation. */
   bannerDismissed: boolean;
   /** Holds noSerialize'd refs to SLM provider + MLflow tracer. */
