@@ -56,6 +56,8 @@ export interface SmartState {
   lastFloorTarget?: number;
   /** Player-relevant words on the last generated board. */
   lastPlayerRelevantWords?: number;
+  /** Total boards searched across all attempts ("best of K"). */
+  lastTotalCandidates?: number;
   /** True once the player has dismissed the current explanation banner. Reset on each new generation. */
   bannerDismissed: boolean;
   /** Holds noSerialize'd refs to SLM provider + MLflow tracer. */

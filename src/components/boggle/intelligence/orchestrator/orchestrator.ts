@@ -139,6 +139,7 @@ export class Orchestrator {
 
       let searchResult: ReturnType<typeof searchForBoard> | null = null;
       let attempt = 0;
+      let totalCandidatesEvaluated = 0;
       while (attempt < maxAttempts) {
         attempt++;
         cb.onNarrate?.(
@@ -160,6 +161,7 @@ export class Orchestrator {
           // search engine gets a no-op tracer so we don't double-count the
           // work in MLflow as two parallel traces.
         } as SearchConfig);
+        totalCandidatesEvaluated += r.candidatesEvaluated;
         if (
           searchResult === null ||
           r.score.finalScore > searchResult.score.finalScore
@@ -248,6 +250,7 @@ export class Orchestrator {
         trace,
         floorMet,
         attemptsMade: attempt,
+        totalCandidatesEvaluated,
       };
     } catch (e) {
       const err = e as Error;

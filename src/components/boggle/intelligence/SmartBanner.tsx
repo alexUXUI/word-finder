@@ -124,6 +124,9 @@ export const SmartBanner = component$(() => {
             {smart.lastModelCalls !== undefined ? ` · ${smart.lastModelCalls} model calls` : ''}
             {smart.lastElapsedMs !== undefined ? ` · ${(smart.lastElapsedMs / 1000).toFixed(1)}s` : ''}
             {smart.lastPlayerRelevantWords !== undefined ? ` · ${smart.lastPlayerRelevantWords} words` : ''}
+            {smart.lastTotalCandidates !== undefined
+              ? ` · best of ${smart.lastTotalCandidates}`
+              : ''}
           </div>
           <div data-testid="smart-banner-explanation-text" style="margin-top:4px;">
             {smart.lastExplanation}

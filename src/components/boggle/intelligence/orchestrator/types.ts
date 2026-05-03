@@ -96,4 +96,6 @@ export interface OrchestratorResult {
   floorMet: boolean;
   /** Number of search attempts made (for diagnostics). */
   attemptsMade: number;
+  /** Total candidates evaluated across all attempts (for "best of K" UI). */
+  totalCandidatesEvaluated: number;
 }

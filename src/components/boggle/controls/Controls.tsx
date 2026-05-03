@@ -187,18 +187,28 @@ export const Controls = component$(() => {
         if (!dict.length) {
           throw new Error('Dictionary not loaded yet');
         }
-        // Budget scales with how aggressive the floor is. The floor input
-        // tells us what the player asked for, not what's typically
-        // achievable; harder targets need bigger search budget per
-        // attempt and more attempts overall to actually land.
-        const aggressiveFloor = gameState.minWordsPerBoard >= 200;
+        // Budget scales with how aggressive the floor is. Random sampling
+        // has a hard ceiling — at 1500 candidates the expected best is
+        // ~270, at 5000 it's ~300. Past that we're paying time for
+        // diminishing returns. We pick a budget that gives a realistic
+        // shot at the requested floor and stop.
+        const floor = gameState.minWordsPerBoard;
+        // Per-attempt candidates: more for higher floors. Capped at 600
+        // so a single attempt finishes in ~40s on M1 (slower on mobile).
+        const candidatesPerAttempt =
+          floor >= 250 ? 600 : floor >= 200 ? 400 : floor >= 150 ? 300 : 200;
+        // Total attempts: enough that total search depth is meaningful
+        // without endless waiting. 5 × 600 = 3000 candidates, ~3 min worst
+        // case on desktop.
+        const maxAttempts =
+          floor >= 250 ? 5 : floor >= 200 ? 5 : floor >= 150 ? 3 : 3;
+        // Per-attempt time budget: 30 s for big searches, 15 s for light.
+        const maxSearchMs = candidatesPerAttempt >= 400 ? 30000 : 15000;
         const orchestrator = new Orchestrator({
           model: provider,
           tracer,
           tools: { availableStrategies: ['frequency-weighted'] },
-          budget: aggressiveFloor
-            ? { maxCandidates: 400, maxSearchMs: 25000 }
-            : { maxCandidates: 200, maxSearchMs: 15000 },
+          budget: { maxCandidates: candidatesPerAttempt, maxSearchMs },
           callbacks: {
             onNarrate: (line) => {
               smart.narration = [...smart.narration, line];
@@ -232,11 +242,7 @@ export const Controls = component$(() => {
             style: 'long-word-heavy',
             difficulty: 'medium',
             minPlayerRelevantWords: gameState.minWordsPerBoard,
-            // 5 attempts on aggressive floors, 3 otherwise — random sampling
-            // with mean ~190 and σ ~33 means the upper tail is reachable but
-            // takes more rolls. 5 × 400 candidates ≈ 95% chance of hitting
-            // 220+ vs ~60% with the old 3 × 200 setup.
-            maxAttempts: aggressiveFloor ? 5 : 3,
+            maxAttempts,
           },
           dict
         );
@@ -251,6 +257,7 @@ export const Controls = component$(() => {
         smart.lastAttempts = result.attemptsMade;
         smart.lastFloorTarget = gameState.minWordsPerBoard;
         smart.lastPlayerRelevantWords = result.score.playerRelevantWords;
+        smart.lastTotalCandidates = result.totalCandidatesEvaluated;
         smart.generationStatus = 'complete';
         smart.generationStage = undefined;
         worker.mod?.postMessage({
