@@ -12,6 +12,7 @@ import { Controls } from './controls/Controls';
 import { WordsPanel } from './controls/WordsPanel';
 import { BoggleBoard } from './board/Board';
 import { SmartBanner } from './intelligence/SmartBanner';
+import { BoardBuilder } from './builder/BoardBuilder';
 import { VersionFooter } from './VersionFooter';
 import { installVersionGlobals } from '../../version';
 import { calculateCellWidth, handleFoundWord } from './logic/board';
@@ -22,8 +23,9 @@ import {
   AnswersCtx,
   WorkerCtx,
   SmartCtx,
+  BuilderCtx,
 } from './context';
-import type { SmartState } from './context';
+import type { SmartState, BuilderState } from './context';
 import BoggleWorker from './worker?worker';
 
 import type {
@@ -95,6 +97,17 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
     refs: {},
   });
 
+  const builderState = useStore<BuilderState>({
+    open: false,
+    prompt: '',
+    isRunning: false,
+    cancelRequested: false,
+    runsCompleted: 0,
+    runsTotal: 0,
+    batchResults: [],
+    savedBoards: [],
+  });
+
   useOnWindow(
     'DOMContentLoaded',
     $(() => {
@@ -154,6 +167,7 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
   useContextProvider(AnswersCtx, answersState);
   useContextProvider(WorkerCtx, workerState);
   useContextProvider(SmartCtx, smartState);
+  useContextProvider(BuilderCtx, builderState);
 
   return (
     <div class="h-[100%] dont-scroll">
@@ -162,6 +176,7 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
       <UserGameStats />
       <BoggleBoard />
       <WordsPanel />
+      <BoardBuilder />
       <VersionFooter />
     </div>
   );

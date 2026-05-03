@@ -7,6 +7,7 @@ import type {
   AnswersState,
   WebWorkerState,
 } from './models';
+import type { BuilderState } from './builder/types';
 
 export const BoardCtx = createContext<BoardState>('board-context');
 export const DictionaryCtx = createContext<DictionaryState>('dictionary');
@@ -74,3 +75,4 @@ export interface SmartState {
 }
 
 export const SmartCtx = createContext<SmartState>('smart-context');
+export const BuilderCtx = createContext<BuilderState>('builder-context');
