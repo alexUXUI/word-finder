@@ -53,11 +53,37 @@ Available strategies (pick exactly one of these names):
 
 Reply with ONLY the strategy name, no explanation.`;
 
-const EXPLAIN_SYSTEM = `You are a Word Finder coach. In ONE short sentence, hype the player about THIS board.
+const EXPLAIN_SYSTEM = `You are a Word Finder coach. Reply with EXACTLY ONE short sentence. Stop after the first sentence — do not repeat yourself, do not add another sentence.
 
 HARD RULE — NEVER spoil specific words. Do NOT name, quote, or hint at any actual word that can be found on the board. No quoted strings, no examples like "x", no spelling out letters.
 
-Talk about the *qualities* — long-word potential, letter mix, rare letters, prefix/suffix opportunities, vibe — and why hunting will be fun. No greetings, no preamble.`;
+Hype the player about *qualities*: long-word potential, letter mix, rare letters, prefix/suffix opportunities, vibe. No greetings, no preamble, no repetition.`;
+
+/**
+ * Strip duplicate sentences. Smaller / cheaper models often produce
+ * "X. X. X." when given any headroom; this is a safety net that trims
+ * to unique sentences in original order so the player sees a single
+ * coherent line.
+ */
+const dedupeSentences = (text: string): string => {
+  if (!text) return '';
+  // Split on sentence-ending punctuation but keep the punctuation.
+  const parts = text.split(/(?<=[.!?])\s+/);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of parts) {
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase().replace(/[^a-z0-9 ]+/g, '');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+    // One sentence is enough — the prompt asks for one and the dedupe
+    // protects us when the model writes more anyway.
+    if (out.length >= 2) break;
+  }
+  return out.join(' ').trim();
+};
 
 export class Orchestrator {
   private readonly tools: ToolRegistry;
@@ -323,8 +349,11 @@ export class Orchestrator {
         { role: 'system', content: EXPLAIN_SYSTEM },
         { role: 'user', content: userMsg },
       ],
-      maxTokens: 96,
-      temperature: 0.4,
+      // Smaller / lower-quality models tend to loop the same sentence
+      // when given headroom. Tight cap + low temperature curbs the
+      // worst of it; dedupeSentences below cleans up what slips through.
+      maxTokens: 80,
+      temperature: 0.25,
       onToken: cb.onTokenStream
         ? (chunk) => {
             acc += chunk;
@@ -333,8 +362,11 @@ export class Orchestrator {
         : undefined,
     });
     span.setAttribute('elapsed_ms', response.elapsedMs);
-    span.setOutputs({ explanation: response.text });
+    const cleaned = dedupeSentences(response.text.trim());
+    span.setAttribute('output_chars_raw', response.text.length);
+    span.setAttribute('output_chars_cleaned', cleaned.length);
+    span.setOutputs({ explanation: cleaned, raw: response.text });
     span.end();
-    return response.text.trim();
+    return cleaned;
   }
 }

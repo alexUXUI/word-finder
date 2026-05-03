@@ -35,9 +35,12 @@ const TIER_LARGE: Omit<SlmTier, 'reason'> = {
 
 const TIER_SMALL: Omit<SlmTier, 'reason'> = {
   id: 'small',
-  modelId: 'HuggingFaceTB/SmolLM2-135M-Instruct',
-  approxSizeMb: 110,
-  displayName: 'SmolLM2-135M (small)',
+  // SmolLM2-360M is the smallest instruct model that produces *coherent*
+  // free-form sentences. The 135M version repeats itself uncontrollably
+  // and we'd rather pay an extra ~100 MB than ship word salad.
+  modelId: 'HuggingFaceTB/SmolLM2-360M-Instruct',
+  approxSizeMb: 220,
+  displayName: 'SmolLM2-360M (small)',
 };
 
 /**
