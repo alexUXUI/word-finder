@@ -8,6 +8,14 @@ import type {
 export interface BoardGenerationGoal {
   size: number;
   minWordLength: number;
+  /**
+   * Hard floor on player-relevant word count. The orchestrator retries
+   * the search until this is met (or maxAttempts is exhausted, in which
+   * case it returns the best attempt). Default: undefined (no floor).
+   */
+  minPlayerRelevantWords?: number;
+  /** Maximum attempts to satisfy minPlayerRelevantWords. Default: 3. */
+  maxAttempts?: number;
   /** Optional broad style hint. */
   style?:
     | 'balanced'

@@ -82,17 +82,30 @@ export const Controls = component$(() => {
       const { TransformersJsProvider } = await import(
         '../intelligence/local-model'
       );
-      const { MLflowTracer } = await import('../generation/trace');
+      const { MLflowTracer, NoopTracer } = await import('../generation/trace');
       const provider = new TransformersJsProvider({
         modelId: 'onnx-community/Qwen2.5-0.5B-Instruct',
       });
       smart.refs.provider = noSerialize(provider);
+
+      // Only emit traces to MLflow when running on a localhost dev box.
+      // From a deployed origin Chrome's Private Network Access policy
+      // would (a) prompt the user about localhost access and (b) block
+      // the POST via CORS — neither belongs in a production page.
+      const host =
+        typeof window !== 'undefined' ? window.location.hostname : '';
+      const isLocalhost =
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        host === '0.0.0.0';
       smart.refs.tracer = noSerialize(
-        new MLflowTracer({
-          experimentName: 'word-finder-player',
-          endpoint: 'http://localhost:5001/traces',
-          silent: true,
-        })
+        isLocalhost
+          ? new MLflowTracer({
+              experimentName: 'word-finder-player',
+              endpoint: 'http://localhost:5001/traces',
+              silent: true,
+            })
+          : NoopTracer
       );
       await provider.load((p) => {
         if (p.total && p.loaded) {
@@ -161,7 +174,7 @@ export const Controls = component$(() => {
           model: provider,
           tracer,
           tools: { availableStrategies: ['frequency-weighted'] },
-          budget: { maxCandidates: 75, maxSearchMs: 5000 },
+          budget: { maxCandidates: 200, maxSearchMs: 15000 },
           callbacks: {
             onNarrate: (line) => {
               smart.narration = [...smart.narration, line];
@@ -194,6 +207,8 @@ export const Controls = component$(() => {
             minWordLength: gameState.minCharLength,
             style: 'long-word-heavy',
             difficulty: 'medium',
+            minPlayerRelevantWords: 150,
+            maxAttempts: 3,
           },
           dict
         );

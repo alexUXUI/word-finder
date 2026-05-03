@@ -53,7 +53,11 @@ Available strategies (pick exactly one of these names):
 
 Reply with ONLY the strategy name, no explanation.`;
 
-const EXPLAIN_SYSTEM = `You are a Word Finder coach. In ONE short sentence, tell the player why this board is fun. Mention 1-2 specific words they could find. No greetings, no preamble.`;
+const EXPLAIN_SYSTEM = `You are a Word Finder coach. In ONE short sentence, hype the player about THIS board.
+
+HARD RULE — NEVER spoil specific words. Do NOT name, quote, or hint at any actual word that can be found on the board. No quoted strings, no examples like "x", no spelling out letters.
+
+Talk about the *qualities* — long-word potential, letter mix, rare letters, prefix/suffix opportunities, vibe — and why hunting will be fun. No greetings, no preamble.`;
 
 export class Orchestrator {
   private readonly tools: ToolRegistry;
@@ -97,31 +101,66 @@ export class Orchestrator {
       modelCalls++;
       cb.onNarrate?.(`💡 Strategy chosen: ${strategyChosen}`);
 
-      // Step 2 — search engine runs with goal-derived weights.
+      // Step 2 — search engine runs with goal-derived weights. If a floor
+      // is set, retry up to maxAttempts until met (then keep the best).
       const styleWeights = this.tools.weightsForStyle?.(goal.style) ?? {};
       const maxCandidates = this.config.budget?.maxCandidates ?? 75;
-      cb.onNarrate?.(
-        `🔍 Searching: best-of-${maxCandidates} candidates with ${goal.style ?? 'balanced'} weights…`
-      );
+      const minFloor = goal.minPlayerRelevantWords ?? 0;
+      const maxAttempts = goal.maxAttempts ?? 3;
+      const strategy = getStrategy(strategyChosen);
       const searchSpan = handle.startSpan('tool.search', 'TOOL', root);
       searchSpan.setInputs({ strategy: strategyChosen, goal });
-      const strategy = getStrategy(strategyChosen);
-      const searchResult = searchForBoard({
-        size: goal.size,
-        language: 'English',
-        minWordLength: goal.minWordLength,
-        dictionary: [...dictionary],
-        strategy,
-        maxCandidates,
-        maxMs: this.config.budget?.maxSearchMs ?? 5000,
-        scoreWeights: { ...DEFAULT_WEIGHTS, ...styleWeights } as Partial<ScoreWeights>,
-        onCandidate: cb.onSearchProgress,
-        // Tracer NOT passed through — orchestrator owns the trace; the search
-        // engine gets a no-op tracer so we don't double-count the work in
-        // MLflow as two parallel traces.
-      } as SearchConfig);
+
+      let searchResult: ReturnType<typeof searchForBoard> | null = null;
+      let attempt = 0;
+      while (attempt < maxAttempts) {
+        attempt++;
+        cb.onNarrate?.(
+          minFloor > 0
+            ? `🔍 Searching (attempt ${attempt}/${maxAttempts}): best-of-${maxCandidates}, target ≥${minFloor} player words…`
+            : `🔍 Searching: best-of-${maxCandidates} candidates with ${goal.style ?? 'balanced'} weights…`
+        );
+        const r = searchForBoard({
+          size: goal.size,
+          language: 'English',
+          minWordLength: goal.minWordLength,
+          dictionary: [...dictionary],
+          strategy,
+          maxCandidates,
+          maxMs: this.config.budget?.maxSearchMs ?? 5000,
+          scoreWeights: { ...DEFAULT_WEIGHTS, ...styleWeights } as Partial<ScoreWeights>,
+          onCandidate: cb.onSearchProgress,
+          // Tracer NOT passed through — orchestrator owns the trace; the
+          // search engine gets a no-op tracer so we don't double-count the
+          // work in MLflow as two parallel traces.
+        } as SearchConfig);
+        if (
+          searchResult === null ||
+          r.score.finalScore > searchResult.score.finalScore
+        ) {
+          searchResult = r;
+        }
+        if (searchResult.score.playerRelevantWords >= minFloor) {
+          if (minFloor > 0 && attempt > 1) {
+            cb.onNarrate?.(
+              `✓ Floor met on attempt ${attempt}: ${searchResult.score.playerRelevantWords} ≥ ${minFloor}.`
+            );
+          }
+          break;
+        }
+        if (attempt < maxAttempts && minFloor > 0) {
+          cb.onNarrate?.(
+            `↩️ Below floor (${r.score.playerRelevantWords} < ${minFloor}); retrying…`
+          );
+        }
+      }
+      // searchResult is guaranteed non-null because the loop runs at least once.
+      // (TypeScript narrowing — assert.)
+      if (!searchResult) {
+        throw new Error('search returned no result');
+      }
       cb.onNarrate?.(
-        `📊 Search done: ${searchResult.candidatesEvaluated} candidates, picked board with ${searchResult.score.playerRelevantWords} ${goal.minWordLength}+ letter words (max ${searchResult.score.maxWordLength}).`
+        `📊 Search done: kept board with ${searchResult.score.playerRelevantWords} ${goal.minWordLength}+ letter words (max ${searchResult.score.maxWordLength}).`
       );
       searchSpan.setAttribute('candidates_evaluated', searchResult.candidatesEvaluated);
       searchSpan.setAttribute('reason', searchResult.reason);
@@ -251,21 +290,29 @@ export class Orchestrator {
     board: string,
     playerRelevantWords: number,
     maxWordLength: number,
-    words: readonly string[],
+    _words: readonly string[],
     handle: ReturnType<typeof this.config.tracer.startTrace>,
     parent: ReturnType<typeof handle.startSpan>
   ): Promise<string> {
     const span = handle.startSpan('model.explain', 'CHAT_MODEL', parent);
-    const sample = words
-      .filter((w) => w.length >= goal.minWordLength)
-      .slice(0, 6);
+    // Don't pass actual words — model would name them and spoil the puzzle.
+    // Also don't pass the board letters because the model is happy to read
+    // them aloud. Stick to abstract qualities the model can riff on without
+    // peeking at the answers.
+    const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
+    const cells = [...board.toLowerCase()];
+    const vowelCount = cells.filter((c) => VOWELS.has(c)).length;
+    const rareLetters = cells.filter((c) => 'jkqvxz'.includes(c));
     const userMsg = [
-      `Board (${goal.size}x${goal.size}, row-major): ${board}`,
-      `Player-relevant words available: ${playerRelevantWords}`,
-      `Longest word length: ${maxWordLength}`,
-      `Examples: ${sample.join(', ')}`,
-      `Style: ${goal.style ?? 'balanced'}`,
-      'Why is this fun?',
+      `${goal.size}x${goal.size} grid.`,
+      `Player goal: words ≥${goal.minWordLength} letters.`,
+      `Available: ${playerRelevantWords} player-relevant words; longest length ${maxWordLength}.`,
+      `Vowel ratio: ${(vowelCount / cells.length).toFixed(2)}.`,
+      rareLetters.length
+        ? `Rare letters present: ${rareLetters.length} (good for unusual words).`
+        : 'No rare letters.',
+      `Style: ${goal.style ?? 'balanced'}.`,
+      'Hype the player. NEVER spoil specific words.',
     ].join('\n');
     span.setInputs({ system: EXPLAIN_SYSTEM, user: userMsg });
 
