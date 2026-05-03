@@ -1,6 +1,6 @@
 # Word Finder — Feature Reference
 
-This document describes the working state of the app from the player's perspective at the time of `feat/test-selectors-and-docs`. It is the source of truth that the e2e suite (`docs/TESTING.md`) verifies. If you change behavior, update this file *and* the matching spec.
+This document describes the working state of the app from the player's perspective. It is the source of truth that the e2e suite (`docs/TESTING.md`) verifies. If you change behavior, update this file *and* the matching spec. Architecture-level companion: [`INTELLIGENT_GENERATION.md`](./INTELLIGENT_GENERATION.md).
 
 Every observable surface here has a stable `data-testid` hook so tests don't depend on layout, copy, or color.
 
@@ -183,6 +183,77 @@ Two slide-up panels at the bottom:
 | `Enter` / `Space` while a cell button is focused | Same as clicking that cell (`onKeyDown` calls `handleClick`). |
 
 ---
+
+## Smart Mode (intelligent board generation)
+
+Smart Mode is **on by default**. The toggle lives in the Controls panel under the existing layout fields.
+
+| Surface | Test hook |
+| --- | --- |
+| Smart Mode toggle | `[data-testid="smart-mode-toggle"]` (`data-smart-enabled`, `data-smart-model-status`, `data-slm-tier`) |
+| Tier hint (idle) | `[data-testid="smart-mode-tier-hint"]` |
+| Tier info (loaded) | `[data-testid="smart-mode-tier-info"]` |
+| SLM model picker | `[data-testid="slm-picker"]` (`data-current` reflects the chosen tier) |
+| Min Words input | `[data-testid="min-words-input"]` |
+| Banner status (loading / generating) | `[data-testid="smart-banner-status"]` |
+| Banner narration log | `[data-testid="smart-banner-narration"]` with `[data-testid="narration-line"]` items |
+| Live token stream | `[data-testid="live-tokens"]` |
+| Search progress | `[data-testid="search-progress"]` |
+| Floor-missed warning | `[data-testid="smart-banner-floor-warning"]` |
+| Result block | `[data-testid="smart-banner-explanation"]` with `[data-testid="smart-banner-explanation-text"]` |
+| Dismiss × | `[data-testid="smart-banner-dismiss"]` |
+
+**How a Smart reset feels:**
+
+1. Reset Board click. Toggle reads `✨ Smart Mode: ON · <model name>` if the model is already loaded; otherwise it loads on first click (~110–786 MB depending on tier; cached after first session per origin).
+2. Banner shows narration log: 🤔 → 💡 → 🔍 → 📊 → 💬 → ✅, with token stream beneath and a candidate-progress bar.
+3. On completion: banner shows score / strategy / model calls / elapsed / "best of K" / actual word count, plus the SLM's no-spoiler explanation. Dismiss × hides it.
+4. If the **Min Words** floor wasn't met after all attempts, a yellow warning appears above the explanation: *"Couldn't reach Min Words target of N after K attempts. Best result: M."*
+
+**Model picker:** dropdown with five options — `Auto (User-Agent)`, `Cloudflare Server` (server-side, ~0 MB on-device), `SmolLM2-135M` (~110 MB), `SmolLM2-360M` (~220 MB), `Qwen2.5-0.5B` (~786 MB), `Llama-3.2-1B` (~1100 MB). Choice persists in `localStorage["word-finder.slm-id"]`. Auto routes iOS UAs to the server tier; modern mobile to SmolLM2-360M; desktop to Qwen2.5-0.5B.
+
+**Min Words:** number input. Smart Mode retries the search up to 5× to satisfy this floor. Search budget scales: <150 → 200 cands × 3 attempts; ≥150 → 300 × 3; ≥200 → 400 × 5; ≥250 → 600 × 5.
+
+**Random sampling ceiling:** ~320–350 player-relevant words on a 5×5. Hill-climbing search (not yet shipped) pushes that to ~500.
+
+## Board Builder side panel
+
+Power-user surface. A vertical "🛠 Board Builder" tab on the right edge opens a slide-in panel.
+
+| Surface | Test hook |
+| --- | --- |
+| Toggle (right edge) | `[data-testid="board-builder-toggle"]` |
+| Panel | `[data-testid="board-builder-panel"]` (`data-open="true"` when shown) |
+| Close | `[data-testid="board-builder-close"]` |
+| "no model loaded" warning | `[data-testid="board-builder-no-model"]` |
+| Guidance prompt | `[data-testid="board-builder-prompt"]` (textarea) |
+| Run buttons | `[data-testid="board-builder-run-1"]` / `…-5` / `…-10` / `…-25` |
+| Cancel | `[data-testid="board-builder-cancel"]` |
+| Progress | `[data-testid="board-builder-progress"]` |
+| Aggregate stats | `[data-testid="board-builder-batch-stats"]` |
+| Results table | `[data-testid="board-builder-results"]` with `[data-testid="board-builder-result-row"]` items |
+| Load row into game | `[data-testid="board-builder-result-load"]` (↩) |
+| Save row to favorites | `[data-testid="board-builder-result-save"]` (☆) |
+| Saved-empty placeholder | `[data-testid="board-builder-saved-empty"]` |
+| Saved list | `[data-testid="board-builder-saved-list"]` with `[data-testid="board-builder-saved-item"]` items |
+
+**How it works:**
+
+1. Type a free-form prompt (e.g. *"lots of long words ending in -ing"*). Persists in `localStorage["word-finder.builder.prompt"]`.
+2. Click 1× / 5× / 10× / 25× to run the orchestrator that many times sequentially. Each result is a row in the table.
+3. The prompt threads into `goal.description` and is visible to both the strategy router and the explanation step. Each run uses `maxAttempts: 1` so the table reflects the natural distribution.
+4. Click ↩ to load a row's board into the game (worker re-solves so the answers panel updates). Click ☆ to save it to favorites (`localStorage["word-finder.builder.saved"]`).
+5. Saved boards persist across sessions; per-row note is editable.
+
+## Version surface
+
+Every deployed page exposes the build version via five surfaces:
+
+- Footer (bottom-right): `[data-testid="version-footer"]` reads `v<sha> · <date>Z` with `data-version-sha`, `data-version-branch`, `data-version-build-time` attributes.
+- `<meta name="x-app-version">`, `<meta name="x-app-branch">`, `<meta name="x-app-build-time">`.
+- `window.__APP_VERSION__` JS global.
+- `localStorage["word-finder.version"]` JSON.
+- DevTools console banner on hydration: `[word-finder] v<sha> · <branch> · built <iso>`.
 
 ## Known limitations (so tests don't fight them)
 
