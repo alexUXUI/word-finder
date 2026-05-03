@@ -24,8 +24,8 @@ export const LetterCube = ({
 }: LetterCubeProps) => {
   const letter = boardState.chars[currentIndex]?.toLocaleUpperCase();
   const baseStyle = {
-    height: `${boardState.cellWidth}px` ?? 0,
-    width: `${boardState.cellWidth}px` ?? 0,
+    height: `${boardState.cellWidth}px`,
+    width: `${boardState.cellWidth}px`,
   };
   const baseClass = `cube__face cube__face--`;
   const zPerspective = boardState.cellWidth / 2;

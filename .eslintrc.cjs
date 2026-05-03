@@ -35,7 +35,12 @@ module.exports = {
     'prefer-spread': 'off',
     'no-case-declarations': 'off',
     'no-console': 'off',
-    '@typescript-eslint/no-unused-vars': ['error'],
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      // Conventional: _-prefixed args/vars are intentionally unused (e.g. when
+      // satisfying an interface signature). Don't flag them.
+      { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+    ],
     '@typescript-eslint/consistent-type-imports': 'warn',
   },
 };
