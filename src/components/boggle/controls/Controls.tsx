@@ -69,11 +69,73 @@ export const Controls = component$(() => {
     }
   );
 
+  const ensureSmartLoaded = $(async (): Promise<boolean> => {
+    if (smart.modelStatus === 'ready') return true;
+    if (smart.modelStatus === 'loading') {
+      // Already in flight; caller should wait.
+      return false;
+    }
+    smart.modelStatus = 'loading';
+    smart.modelLoadProgress = 0;
+    smart.modelLoadError = undefined;
+    try {
+      const { TransformersJsProvider } = await import(
+        '../intelligence/local-model'
+      );
+      const { MLflowTracer } = await import('../generation/trace');
+      const provider = new TransformersJsProvider({
+        modelId: 'onnx-community/Qwen2.5-0.5B-Instruct',
+      });
+      smart.refs.provider = noSerialize(provider);
+      smart.refs.tracer = noSerialize(
+        new MLflowTracer({
+          experimentName: 'word-finder-player',
+          endpoint: 'http://localhost:5001/traces',
+          silent: true,
+        })
+      );
+      await provider.load((p) => {
+        if (p.total && p.loaded) {
+          smart.modelLoadProgress = (p.loaded / p.total) * 100;
+        } else if (p.status === 'ready') {
+          smart.modelLoadProgress = 100;
+        }
+      });
+      smart.modelStatus = 'ready';
+      smart.modelLoadProgress = 100;
+      return true;
+    } catch (err) {
+      smart.modelStatus = 'error';
+      smart.modelLoadError = err instanceof Error ? err.message : String(err);
+      return false;
+    }
+  });
+
   const handleRandomizeBoard = $(async () => {
-    if (smart.enabled && smart.modelStatus === 'ready') {
-      // Smart Mode: orchestrator drives the new board.
+    if (smart.enabled) {
+      // Smart Mode (the default): lazy-load the model on first click,
+      // then run the orchestrator. If load fails, fall back to legacy.
+      const ready = await ensureSmartLoaded();
+      if (!ready) {
+        if (smart.modelStatus === 'error') {
+          // Drop to legacy single-shot so the player still gets a board.
+          boardState.chars = randomBoard(
+            gameState.language,
+            boardState.boardSize
+          ).split('');
+          answersState.answers = [];
+          worker.mod?.postMessage({
+            language: gameState.language,
+            board: boardState.chars,
+            minCharLength: gameState.minCharLength,
+          });
+        }
+        return;
+      }
+
       smart.generationStatus = 'running';
       smart.generationStage = 'planning';
+      smart.bannerDismissed = false;
       smart.lastExplanation = undefined;
       try {
         const { Orchestrator } = await import(
@@ -108,7 +170,6 @@ export const Controls = component$(() => {
           },
           dict
         );
-        // Apply orchestrator output to game state.
         boardState.chars = [...result.board];
         answersState.answers = [];
         smart.lastExplanation = result.explanation;
@@ -118,14 +179,12 @@ export const Controls = component$(() => {
         smart.lastElapsedMs = result.elapsedMs;
         smart.generationStatus = 'complete';
         smart.generationStage = undefined;
-        // Re-solve via worker so the answers panel populates.
         worker.mod?.postMessage({
           language: gameState.language,
           board: boardState.chars,
           minCharLength: gameState.minCharLength,
           isDictionaryLoaded: true,
         });
-        // Flush MLflow trace asynchronously — don't block the UI.
         const tracerWithFlush = tracer as unknown as { flush?: () => Promise<void> };
         tracerWithFlush.flush?.().catch(() => {
           /* swallow — banner doesn't surface trace flush errors */
@@ -137,7 +196,7 @@ export const Controls = component$(() => {
       return;
     }
 
-    // Legacy path (Smart Mode off): the original frequency-weighted single-shot.
+    // Smart Mode off: the original frequency-weighted single-shot.
     boardState.chars = randomBoard(
       gameState.language,
       boardState.boardSize
@@ -151,47 +210,8 @@ export const Controls = component$(() => {
   });
 
   const handleToggleSmartMode = $(async () => {
-    if (smart.modelStatus === 'loading') return; // ignore mid-load clicks
-    if (smart.enabled && smart.modelStatus === 'ready') {
-      // Just disable; keep the loaded model around for re-enable.
-      smart.enabled = false;
-      return;
-    }
-    smart.enabled = true;
-    if (smart.modelStatus === 'ready') return;
-    smart.modelStatus = 'loading';
-    smart.modelLoadProgress = 0;
-    smart.modelLoadError = undefined;
-    try {
-      const { TransformersJsProvider } = await import(
-        '../intelligence/local-model'
-      );
-      const { MLflowTracer } = await import('../generation/trace');
-      const provider = new TransformersJsProvider({
-        modelId: 'onnx-community/Qwen2.5-0.5B-Instruct',
-      });
-      smart.refs.provider = noSerialize(provider);
-      smart.refs.tracer = noSerialize(
-        new MLflowTracer({
-          experimentName: 'word-finder-player',
-          endpoint: 'http://localhost:5001/traces',
-          silent: true,
-        })
-      );
-      await provider.load((p) => {
-        if (p.total && p.loaded) {
-          smart.modelLoadProgress = (p.loaded / p.total) * 100;
-        } else if (p.status === 'ready') {
-          smart.modelLoadProgress = 100;
-        }
-      });
-      smart.modelStatus = 'ready';
-      smart.modelLoadProgress = 100;
-    } catch (err) {
-      smart.modelStatus = 'error';
-      smart.modelLoadError = err instanceof Error ? err.message : String(err);
-      smart.enabled = false;
-    }
+    if (smart.modelStatus === 'loading') return;
+    smart.enabled = !smart.enabled;
   });
 
   const handleChangeLanguage = $((e: QwikChangeEvent<HTMLSelectElement>) => {
@@ -354,17 +374,17 @@ export const Controls = component$(() => {
               >
                 {smart.modelStatus === 'loading'
                   ? `Loading model (${Math.round(smart.modelLoadProgress)}%)…`
-                  : smart.modelStatus === 'ready' && smart.enabled
-                  ? '✨ Smart Mode: ON'
-                  : smart.modelStatus === 'ready'
-                  ? 'Smart Mode: ready (off)'
                   : smart.modelStatus === 'error'
-                  ? `Error: ${smart.modelLoadError ?? 'unknown'}`
-                  : 'Smart Mode: OFF — click to enable'}
+                  ? `Error: ${smart.modelLoadError ?? 'unknown'} (click to retry)`
+                  : smart.enabled && smart.modelStatus === 'ready'
+                  ? '✨ Smart Mode: ON'
+                  : smart.enabled
+                  ? '✨ Smart Mode: ON (model loads on first reset)'
+                  : 'Smart Mode: OFF'}
               </button>
-              {smart.modelStatus === 'idle' && (
+              {smart.enabled && smart.modelStatus === 'idle' && (
                 <span style="font-size:11px; color:#666; margin-top:2px;">
-                  Downloads ~786 MB Qwen2.5-0.5B once, then uses it locally.
+                  Downloads ~786 MB Qwen2.5-0.5B once on first reset, then uses it locally.
                 </span>
               )}
             </div>

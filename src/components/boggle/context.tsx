@@ -29,6 +29,8 @@ export interface SmartState {
   lastFinalScore?: number;
   lastModelCalls?: number;
   lastElapsedMs?: number;
+  /** True once the player has dismissed the current explanation banner. Reset on each new generation. */
+  bannerDismissed: boolean;
   /** Holds noSerialize'd refs to SLM provider + MLflow tracer. */
   refs: {
     provider?: NoSerialize<unknown>;

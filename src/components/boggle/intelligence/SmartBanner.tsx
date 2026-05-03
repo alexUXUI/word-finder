@@ -1,15 +1,28 @@
-import { component$, useContext } from '@builder.io/qwik';
+import { $, component$, useContext } from '@builder.io/qwik';
 import { SmartCtx } from '../context';
 
 export const SmartBanner = component$(() => {
   const smart = useContext(SmartCtx);
 
-  if (!smart.enabled && smart.modelStatus === 'idle' && !smart.lastExplanation) {
+  const isLoading = smart.modelStatus === 'loading';
+  const isGenerating = smart.generationStatus === 'running';
+  const showExplanation =
+    !!smart.lastExplanation &&
+    smart.generationStatus === 'complete' &&
+    !smart.bannerDismissed;
+
+  if (
+    !isLoading &&
+    !isGenerating &&
+    !showExplanation &&
+    !smart.modelLoadError
+  ) {
     return null;
   }
 
-  const isLoading = smart.modelStatus === 'loading';
-  const isGenerating = smart.generationStatus === 'running';
+  const dismiss = $(() => {
+    smart.bannerDismissed = true;
+  });
 
   return (
     <div
@@ -41,12 +54,21 @@ export const SmartBanner = component$(() => {
           SLM error: {smart.modelLoadError}
         </div>
       )}
-      {smart.lastExplanation && smart.generationStatus === 'complete' && (
+      {showExplanation && (
         <div
           data-testid="smart-banner-explanation"
           class="rounded-md bg-blue-50 border-l-4 border-blue-500 px-3 py-2 my-1"
-          style="font-style: italic;"
+          style="font-style: italic; position: relative; padding-right: 32px;"
         >
+          <button
+            type="button"
+            data-testid="smart-banner-dismiss"
+            aria-label="Dismiss explanation"
+            onClick$={dismiss}
+            style="position:absolute; top:4px; right:6px; background:transparent; border:0; cursor:pointer; color:#345; font-size:18px; line-height:1; padding:2px 6px; border-radius:4px; font-style:normal;"
+          >
+            ×
+          </button>
           <div style="color:#225; font-weight:600; font-style: normal;">
             ✨ {smart.lastStrategy} · score {smart.lastFinalScore?.toFixed?.(0) ?? smart.lastFinalScore}
             {smart.lastModelCalls !== undefined ? ` · ${smart.lastModelCalls} model calls` : ''}

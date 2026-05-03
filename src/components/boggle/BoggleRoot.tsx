@@ -78,10 +78,14 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
   });
 
   const smartState = useStore<SmartState>({
-    enabled: false,
+    // Smart Mode is the default. The model itself is *not* downloaded
+    // until the first Reset Board click — until then the SSR board stands
+    // and the toggle simply reads "Smart Mode: ON".
+    enabled: true,
     modelStatus: 'idle',
     modelLoadProgress: 0,
     generationStatus: 'idle',
+    bannerDismissed: false,
     refs: {},
   });
 
