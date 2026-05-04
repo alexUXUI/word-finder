@@ -1,7 +1,7 @@
 import { component$, useContext } from '@builder.io/qwik';
 import { useLocation } from '@builder.io/qwik-city';
 import { ProfileCtx } from '../boggle/context';
-import { IconBolt, IconGrid, IconPlay, IconUser } from './icons';
+import { IconBolt, IconGrid, IconPlay, IconStar, IconUser } from './icons';
 import type { Component } from '@builder.io/qwik';
 
 interface NavItem {
@@ -18,6 +18,7 @@ export const ITEMS: NavItem[] = [
   { href: '/',                     label: 'Play',          Icon: IconPlay, testId: 'leftnav-play' },
   { href: '/?panel=multiplayer',   label: 'Multiplayer',   Icon: IconBolt, testId: 'leftnav-multiplayer', panel: 'multiplayer' },
   { href: '/?panel=builder',       label: 'Board Builder', Icon: IconGrid, testId: 'leftnav-builder',     panel: 'builder' },
+  { href: '/?panel=stats',         label: 'Batch Stats',   Icon: IconStar, testId: 'leftnav-stats',       panel: 'stats' },
   { href: '/profile/',             label: 'Profile',       Icon: IconUser, testId: 'leftnav-profile' },
 ];
 

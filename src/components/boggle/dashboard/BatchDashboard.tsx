@@ -266,6 +266,24 @@ export const BatchDashboard = component$(() => {
             </button>
           </header>
 
+          {/* Empty state — when opened via the LeftNav before any batch
+              has run, give the user a hint instead of a blank panel. */}
+          {rows.length === 0 && !smart.batchProgress && (
+            <div
+              data-testid="batch-dashboard-empty"
+              style="padding: 36px 24px; text-align: center; background: rgba(255,255,255,0.55); backdrop-filter: blur(12px) saturate(140%); -webkit-backdrop-filter: blur(12px) saturate(140%); border: 1px dashed rgba(15,23,42,0.12); border-radius: 12px; color: #64748b;"
+            >
+              <div style="display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 999px; background: rgba(245,158,11,0.10); color: #f59e0b; margin-bottom: 12px;">
+                <IconStar size={22} />
+              </div>
+              <div style="font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 4px;">No batch yet</div>
+              <div style="font-size: 13px;">
+                Run a Smart Mode reset from Controls to populate the dashboard.<br />
+                Bar chart, Pareto plot, and per-run table will appear here.
+              </div>
+            </div>
+          )}
+
           {/* Stats strip */}
           {rows.length > 0 && (
             <div

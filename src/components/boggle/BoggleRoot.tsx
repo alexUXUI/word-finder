@@ -460,16 +460,20 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
   });
 
   return (
-    <div class="h-[100%] dont-scroll">
+    <div
+      data-testid="play-page"
+      style="display: flex; flex-direction: column; align-items: center; max-width: 720px; margin: 0 auto; padding: 8px 12px 32px;"
+    >
       <Controls />
       <SmartBanner />
-      <BatchDashboard />
       <UserGameStats />
       <BoggleBoard />
       <WordsPanel />
+      <VersionFooter />
+      {/* Right-side slide-in panels — out of normal flow (position: fixed) */}
+      <BatchDashboard />
       <PipelineLab />
       <MultiplayerPanel />
-      <VersionFooter />
     </div>
   );
 });
