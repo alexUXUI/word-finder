@@ -1,4 +1,5 @@
 import { $, component$, useContext, useBrowserVisibleTask$, useSignal } from '@builder.io/qwik';
+import { IconClose, IconGrid } from '../../shell/icons';
 import {
   BoardCtx,
   BuilderCtx,
@@ -88,9 +89,6 @@ export const PipelineLab = component$(() => {
     }
   });
 
-  const open = $(() => {
-    builder.open = true;
-  });
   const close = $(() => {
     builder.open = false;
   });
@@ -300,38 +298,27 @@ export const PipelineLab = component$(() => {
 
   return (
     <>
-      {!builder.open && (
-        <button
-          type="button"
-          data-testid="pipeline-lab-toggle"
-          onClick$={open}
-          class="glass-tab"
-          style="top: 56%;"
-        >
-          🧪 Pipeline Lab
-        </button>
-      )}
+      {/* Right-edge tab removed — opened via LeftNav "Board Builder". */}
 
       <aside
         data-testid="pipeline-lab-panel"
         data-open={builder.open ? 'true' : 'false'}
-        class="glass"
-        style={`position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 95vw); z-index: 110; overflow-y: auto; transform: translateX(${builder.open ? '0' : '100%'}); transition: transform 0.22s ease-out; border-left: 2px solid #dfdfdf; box-shadow: -8px 0 24px rgba(30,58,138,0.08);`}
+        style={`position: fixed; top: 56px; right: 0; bottom: 0; width: min(560px, 95vw); z-index: 60; overflow-y: auto; background: rgba(255,255,255,0.62); backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%); border-left: 1px solid rgba(15,23,42,0.06); box-shadow: -8px 0 24px rgba(15,23,42,0.06); transform: translateX(${builder.open ? '0' : '100%'}); transition: transform 0.22s ease-out;`}
       >
         <div style="padding: 14px 14px 24px; display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
           <header style="display: flex; align-items: center; justify-content: space-between;">
-            <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: #1e3a8a; letter-spacing: 0.01em;">
-              🧪 Pipeline Lab
+            <h2 style="margin: 0; font-size: 15px; font-weight: 600; color: #0f172a; letter-spacing: -0.005em; display: flex; align-items: center; gap: 8px;">
+              <span style="color: #f59e0b; display: inline-flex;"><IconGrid size={16} /></span>
+              Board Builder
             </h2>
             <button
               type="button"
               data-testid="pipeline-lab-close"
               onClick$={close}
-              class="glass-btn-icon"
               aria-label="Close panel"
-              style="font-size: 18px;"
+              style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; background: transparent; border: 0; color: #64748b; cursor: pointer; border-radius: 6px;"
             >
-              ×
+              <IconClose size={16} />
             </button>
           </header>
 

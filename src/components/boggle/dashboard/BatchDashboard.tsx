@@ -14,6 +14,7 @@ import {
   exportRatingsToFile,
 } from '../calibration/storage';
 import { addFavoriteBoard } from '../profile/api';
+import { IconClose, IconStar } from '../../shell/icons';
 
 /**
  * Multi-run dashboard. Slides in from the right edge as a frosted-glass
@@ -68,9 +69,6 @@ export const BatchDashboard = component$(() => {
     typeof window !== 'undefined' ? loadRatings().length : 0
   );
 
-  const open = $(() => {
-    smart.dashboardOpen = true;
-  });
   const close = $(() => {
     smart.dashboardOpen = false;
   });
@@ -155,7 +153,6 @@ export const BatchDashboard = component$(() => {
 
   const rows = smart.lastBatch ?? [];
   const isOpen = !!smart.dashboardOpen;
-  const hasData = rows.length > 0 || smart.batchProgress;
 
   // ── stats ───────────────────────────────────────────────────────────
   const pwVals = rows.map((r) => r.playerRelevantWords);
@@ -240,43 +237,32 @@ export const BatchDashboard = component$(() => {
 
   return (
     <>
-      {/* Right-edge tab — visible whenever there's data, even when panel closed */}
-      {hasData && !isOpen && (
-        <button
-          type="button"
-          data-testid="batch-dashboard-toggle"
-          onClick$={open}
-          class="glass-tab"
-          style="top: 36%;"
-          aria-label="Open batch dashboard"
-        >
-          📊 Stats
-        </button>
-      )}
+      {/* Right-edge tab removed — Stats auto-opens on batch completion;
+          there's no LeftNav entry yet because the panel only has data
+          after a Smart Mode reset. */}
 
       {/* Slide-in panel */}
       <aside
         data-testid="batch-dashboard"
         data-runs={rows.length}
         data-open={isOpen ? 'true' : 'false'}
-        class="glass"
-        style={`position: fixed; top: 0; right: 0; bottom: 0; width: min(540px, 95vw); z-index: 110; overflow-y: auto; transform: translateX(${isOpen ? '0' : '100%'}); transition: transform 0.22s ease-out; border-left: 2px solid #dfdfdf; box-shadow: -8px 0 24px rgba(30,58,138,0.08);`}
+        style={`position: fixed; top: 56px; right: 0; bottom: 0; width: min(540px, 95vw); z-index: 60; overflow-y: auto; background: rgba(255,255,255,0.62); backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%); border-left: 1px solid rgba(15,23,42,0.06); box-shadow: -8px 0 24px rgba(15,23,42,0.06); transform: translateX(${isOpen ? '0' : '100%'}); transition: transform 0.22s ease-out;`}
       >
         <div style="padding: 14px 14px 24px; display: flex; flex-direction: column; gap: 12px;">
           {/* Header */}
           <header style="display: flex; align-items: center; justify-content: space-between;">
-            <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: #1e3a8a; letter-spacing: 0.01em;">
-              📊 Batch Dashboard
+            <h2 style="margin: 0; font-size: 15px; font-weight: 600; color: #0f172a; letter-spacing: -0.005em; display: flex; align-items: center; gap: 8px;">
+              <span style="color: #f59e0b; display: inline-flex;"><IconStar size={16} /></span>
+              Batch Dashboard
             </h2>
             <button
               type="button"
               data-testid="batch-dashboard-close"
               onClick$={close}
-              class="glass-btn-icon"
               aria-label="Close panel"
-              style="font-size: 18px;"
+              style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; background: transparent; border: 0; color: #64748b; cursor: pointer; border-radius: 6px;"
             >
-              ×
+              <IconClose size={16} />
             </button>
           </header>
 

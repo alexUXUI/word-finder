@@ -9,6 +9,7 @@ import {
   useBrowserVisibleTask$,
 } from '@builder.io/qwik';
 
+import { useLocation } from '@builder.io/qwik-city';
 import { Controls } from './controls/Controls';
 import { WordsPanel } from './controls/WordsPanel';
 import { BoggleBoard } from './board/Board';
@@ -65,6 +66,7 @@ export interface BoggleProps {
 
 export const BoogleRoot = component$(({ data }: BoggleProps) => {
   const { board, boardWidth, boardSize, language, minCharLength, minWordsPerBoard, attemptsPerReset } = data;
+  const loc = useLocation();
 
   const dictionaryState = useStore<DictionaryState>({ dictionary: [] });
 
@@ -212,6 +214,21 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
   useContextProvider(SmartCtx, smartState);
   useContextProvider(BuilderCtx, builderState);
   useContextProvider(MultiplayerCtx, multiplayerState);
+
+  // ─── Panel-opener via URL query. The LeftNav links to /?panel=<x>;
+  // this task watches the query and flips the matching panel open.
+  // Re-runs on URL change (Qwik City's useLocation is reactive), so
+  // clicking the same link with a different panel works too.
+  useTask$(({ track }) => {
+    const panel = track(() => loc.url.searchParams.get('panel'));
+    if (panel === 'multiplayer') {
+      multiplayerState.panelOpen = true;
+    } else if (panel === 'builder') {
+      builderState.open = true;
+    } else if (panel === 'stats') {
+      smartState.dashboardOpen = true;
+    }
+  });
 
   // ─── Multiplayer hydration: load identity + recent games on first paint.
   // Also parse ?game= / ?name= deep-link params and pre-fill the form.

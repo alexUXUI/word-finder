@@ -1,7 +1,7 @@
 import { component$, useContext } from '@builder.io/qwik';
 import { useLocation } from '@builder.io/qwik-city';
 import { ProfileCtx } from '../boggle/context';
-import { IconPlay, IconUser } from './icons';
+import { IconBolt, IconGrid, IconPlay, IconUser } from './icons';
 import type { Component } from '@builder.io/qwik';
 
 interface NavItem {
@@ -9,11 +9,16 @@ interface NavItem {
   label: string;
   Icon: Component<{ size?: number; title?: string }>;
   testId: string;
+  /** When set, this item is "active" if the current pathname is `/` AND
+   *  the URL has `?panel=<openPanel>`. Used for panel-opener links. */
+  panel?: 'multiplayer' | 'builder' | 'stats';
 }
 
 export const ITEMS: NavItem[] = [
-  { href: '/',         label: 'Play',    Icon: IconPlay, testId: 'leftnav-play' },
-  { href: '/profile/', label: 'Profile', Icon: IconUser, testId: 'leftnav-profile' },
+  { href: '/',                     label: 'Play',          Icon: IconPlay, testId: 'leftnav-play' },
+  { href: '/?panel=multiplayer',   label: 'Multiplayer',   Icon: IconBolt, testId: 'leftnav-multiplayer', panel: 'multiplayer' },
+  { href: '/?panel=builder',       label: 'Board Builder', Icon: IconGrid, testId: 'leftnav-builder',     panel: 'builder' },
+  { href: '/profile/',             label: 'Profile',       Icon: IconUser, testId: 'leftnav-profile' },
 ];
 
 /**
@@ -48,10 +53,18 @@ export const LeftNav = component$(() => {
       style={`position: fixed; top: 56px; left: 0; bottom: 0; width: ${width}px; z-index: 50; background: rgba(255,255,255,0.42); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); border-right: 1px solid rgba(15,23,42,0.06); padding: 14px 10px; display: flex; flex-direction: column; gap: 4px; transform: translateX(${translateX}); transition: transform 0.22s ease-out; ${elevation}`}
     >
       {ITEMS.map((item) => {
-        const active =
-          item.href === '/'
-            ? loc.url.pathname === '/' || loc.url.pathname === ''
-            : loc.url.pathname.startsWith(item.href);
+        const onHome = loc.url.pathname === '/' || loc.url.pathname === '';
+        const currentPanel = loc.url.searchParams.get('panel');
+        let active = false;
+        if (item.panel) {
+          // Panel-opener: active when on / AND ?panel matches.
+          active = onHome && currentPanel === item.panel;
+        } else if (item.href === '/') {
+          // "Play" is active on / with no panel query.
+          active = onHome && !currentPanel;
+        } else {
+          active = loc.url.pathname.startsWith(item.href);
+        }
         const Icon = item.Icon;
         return (
           <a

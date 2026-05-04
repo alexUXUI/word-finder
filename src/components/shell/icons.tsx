@@ -90,6 +90,23 @@ export const IconHome = component$<IconProps>((p) => (
   </svg>
 ));
 
+export const IconBolt = component$<IconProps>((p) => (
+  // Lightning — used for the Multiplayer nav link to evoke real-time.
+  <svg {...base(p)}>
+    <path d="M13 3L5 13.5h6l-1 7.5 8-10.5h-6z" />
+  </svg>
+));
+
+export const IconGrid = component$<IconProps>((p) => (
+  // 2×2 grid — used for Board Builder.
+  <svg {...base(p)}>
+    <rect x="4"  y="4"  width="7" height="7" rx="1.5" />
+    <rect x="13" y="4"  width="7" height="7" rx="1.5" />
+    <rect x="4"  y="13" width="7" height="7" rx="1.5" />
+    <rect x="13" y="13" width="7" height="7" rx="1.5" />
+  </svg>
+));
+
 export const IconLogo = component$<IconProps>((p) => (
   // Minimal abstract wordmark — two stacked rectangles suggesting an
   // open book without using the 📖 emoji.
