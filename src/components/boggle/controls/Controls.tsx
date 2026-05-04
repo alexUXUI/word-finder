@@ -81,11 +81,10 @@ export const Controls = component$(() => {
     smart.modelLoadError = undefined;
     try {
       const {
-        TransformersJsProvider,
-        CloudflareServerProvider,
         selectSlmModel,
-        isServerSide,
       } = await import('../intelligence/local-model');
+      const { getProviderForId } = await import('../intelligence/local-model/factory');
+      const { isProviderLoaded } = await import('../intelligence/local-model/transformers-js');
       const { MLflowTracer, NoopTracer } = await import('../generation/trace');
       const sel = selectSlmModel();
       const tier = sel.model;
@@ -96,12 +95,18 @@ export const Controls = component$(() => {
         displayName: tier.displayName,
         reason: sel.reason,
       };
-      // Server-side tier doesn't load anything in the browser; instantiate
-      // the proxy provider and skip straight to ready.
-      const provider = isServerSide(tier)
-        ? new CloudflareServerProvider({ modelId: tier.modelId })
-        : new TransformersJsProvider({ modelId: tier.modelId });
+      // Pull from the module-scope factory cache — survives route navigations
+      // (Play → Profile → Play) and repeat resets within a session, so the
+      // model is loaded into memory exactly once per page lifetime.
+      const provider = getProviderForId(tier.id);
       smart.refs.provider = noSerialize(provider);
+      // Already loaded into JS memory? Fast path: skip the progress UI
+      // entirely. This is the common case for second+ resets in a session.
+      if (isProviderLoaded(provider)) {
+        smart.modelStatus = 'ready';
+        smart.modelLoadProgress = 100;
+        return true;
+      }
 
       // Only emit traces to MLflow when running on a localhost dev box.
       // From a deployed origin Chrome's Private Network Access policy

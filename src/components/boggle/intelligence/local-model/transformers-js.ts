@@ -173,3 +173,19 @@ export class TransformersJsProvider implements LocalModelProvider {
     };
   }
 }
+
+/**
+ * True if `provider` is a TransformersJsProvider whose model has already
+ * been loaded into JS memory in this page session. Used by Controls to
+ * skip the "Loading SLM…" UI on second+ resets — the factory's
+ * module-scope cache returns the same provider, and load() is a no-op
+ * once `generator` is set.
+ *
+ * Defensively narrows on the `isReady` getter so this also returns true
+ * for any other provider type that exposes `isReady` (e.g. server proxies
+ * that are always ready).
+ */
+export const isProviderLoaded = (provider: LocalModelProvider): boolean => {
+  const p = provider as unknown as { isReady?: boolean };
+  return p.isReady === true;
+};
