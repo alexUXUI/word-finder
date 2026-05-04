@@ -1,7 +1,7 @@
 import { component$, useContext } from '@builder.io/qwik';
 import { useLocation } from '@builder.io/qwik-city';
 import { ProfileCtx } from '../boggle/context';
-import { IconBolt, IconGrid, IconPlay, IconStar, IconUser } from './icons';
+import { IconBolt, IconGrid, IconPlay, IconSparkle, IconStar, IconUser } from './icons';
 import type { Component } from '@builder.io/qwik';
 
 interface NavItem {
@@ -11,15 +11,16 @@ interface NavItem {
   testId: string;
   /** When set, this item is "active" if the current pathname is `/` AND
    *  the URL has `?panel=<openPanel>`. Used for panel-opener links. */
-  panel?: 'multiplayer' | 'builder' | 'stats';
+  panel?: 'multiplayer' | 'builder' | 'stats' | 'reasoning';
 }
 
 export const ITEMS: NavItem[] = [
-  { href: '/',                     label: 'Play',          Icon: IconPlay, testId: 'leftnav-play' },
-  { href: '/?panel=multiplayer',   label: 'Multiplayer',   Icon: IconBolt, testId: 'leftnav-multiplayer', panel: 'multiplayer' },
-  { href: '/?panel=builder',       label: 'Board Builder', Icon: IconGrid, testId: 'leftnav-builder',     panel: 'builder' },
-  { href: '/?panel=stats',         label: 'Batch Stats',   Icon: IconStar, testId: 'leftnav-stats',       panel: 'stats' },
-  { href: '/profile/',             label: 'Profile',       Icon: IconUser, testId: 'leftnav-profile' },
+  { href: '/',                     label: 'Play',          Icon: IconPlay,    testId: 'leftnav-play' },
+  { href: '/?panel=reasoning',     label: 'Reasoning',     Icon: IconSparkle, testId: 'leftnav-reasoning',   panel: 'reasoning' },
+  { href: '/?panel=builder',       label: 'Board Builder', Icon: IconGrid,    testId: 'leftnav-builder',     panel: 'builder' },
+  { href: '/?panel=stats',         label: 'Batch Stats',   Icon: IconStar,    testId: 'leftnav-stats',       panel: 'stats' },
+  { href: '/?panel=multiplayer',   label: 'Multiplayer',   Icon: IconBolt,    testId: 'leftnav-multiplayer', panel: 'multiplayer' },
+  { href: '/profile/',             label: 'Profile',       Icon: IconUser,    testId: 'leftnav-profile' },
 ];
 
 /**
@@ -75,7 +76,7 @@ export const LeftNav = component$(() => {
             data-active={active ? 'true' : 'false'}
             title={item.label}
             onClick$={() => { if (compact) profile.navDrawerOpen = false; }}
-            style={`position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 8px; color: ${active ? '#0f172a' : '#475569'}; background: ${active ? 'rgba(255,255,255,0.7)' : 'transparent'}; text-decoration: none; font-size: 13.5px; font-weight: ${active ? 600 : 500}; transition: background 0.12s, color 0.12s; white-space: nowrap; overflow: hidden; ${active ? 'box-shadow: inset 3px 0 0 #f59e0b, 0 1px 2px rgba(15,23,42,0.04);' : ''}`}
+            style={`display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: ${active ? '#0f172a' : '#64748b'}; background: ${active ? 'rgba(15,23,42,0.04)' : 'transparent'}; text-decoration: none; font-size: 13px; font-weight: ${active ? 600 : 500}; transition: background 0.12s, color 0.12s; white-space: nowrap; overflow: hidden;`}
           >
             <span style={`color: ${active ? '#0f172a' : '#94a3b8'}; display: inline-flex; flex: 0 0 auto; transition: color 0.12s;`}>
               <Icon size={16} />

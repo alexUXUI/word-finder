@@ -90,6 +90,14 @@ export const IconHome = component$<IconProps>((p) => (
   </svg>
 ));
 
+export const IconSparkle = component$<IconProps>((p) => (
+  // Four-point compass star — used for AI / reasoning surfaces.
+  <svg {...base(p)}>
+    <path d="M12 4v6M12 14v6M4 12h6M14 12h6" />
+    <path d="M12 4l1.5 6.5L20 12l-6.5 1.5L12 20l-1.5-6.5L4 12l6.5-1.5z" stroke-width="1" />
+  </svg>
+));
+
 export const IconBolt = component$<IconProps>((p) => (
   // Lightning — used for the Multiplayer nav link to evoke real-time.
   <svg {...base(p)}>

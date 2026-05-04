@@ -74,6 +74,9 @@ export interface SmartState {
   };
   /** True when the side-panel dashboard is open. */
   dashboardOpen?: boolean;
+  /** True when the Reasoning side panel is open. Auto-flips true on
+   *  generation start; user closes manually. */
+  reasoningOpen?: boolean;
   /** True once the player has dismissed the current explanation banner. Reset on each new generation. */
   bannerDismissed: boolean;
   /** Holds noSerialize'd refs to SLM provider + MLflow tracer. */

@@ -14,6 +14,7 @@ import { Controls } from './controls/Controls';
 import { WordsPanel } from './controls/WordsPanel';
 import { BoggleBoard } from './board/Board';
 import { SmartBanner } from './intelligence/SmartBanner';
+import { ReasoningPanel } from './intelligence/ReasoningPanel';
 import { PipelineLab } from './lab/PipelineLab';
 import { BatchDashboard } from './dashboard/BatchDashboard';
 import { VersionFooter } from './VersionFooter';
@@ -227,6 +228,8 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
       builderState.open = true;
     } else if (panel === 'stats') {
       smartState.dashboardOpen = true;
+    } else if (panel === 'reasoning') {
+      smartState.reasoningOpen = true;
     }
   });
 
@@ -493,6 +496,7 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
       <BatchDashboard />
       <PipelineLab />
       <MultiplayerPanel />
+      <ReasoningPanel />
     </div>
   );
 });
