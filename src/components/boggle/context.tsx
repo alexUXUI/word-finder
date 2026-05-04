@@ -8,6 +8,8 @@ import type {
   WebWorkerState,
 } from './models';
 import type { BuilderState } from './builder/types';
+import type { MultiplayerClient, ConnectionStatus } from './multiplayer/client';
+import type { GameState as MpGameState, ResultsPayload } from './multiplayer/protocol';
 
 export type { BuilderState };
 
@@ -88,6 +90,60 @@ export interface SmartState {
 
 export const SmartCtx = createContext<SmartState>('smart-context');
 export const BuilderCtx = createContext<BuilderState>('builder-context');
+
+// ─────────────────────────── Multiplayer ───────────────────────────
+
+export interface MultiplayerEventEntry {
+  /** Auto-incremented for keying. */
+  id: number;
+  /** Lower-cased event kind for styling/filtering. */
+  kind: 'joined' | 'left' | 'found' | 'started' | 'ended' | 'error';
+  /** Display string shown in the recent-events feed. */
+  text: string;
+  /** Origin player when relevant — used to color the row. */
+  playerId?: string;
+  ts: number;
+}
+
+export interface MultiplayerState {
+  /** True once the user has explicitly opened the panel at least once. */
+  panelOpen: boolean;
+  /** Persistent UUID from localStorage. Empty until hydrated. */
+  playerId: string;
+  /** Editable display name; persisted to localStorage on commit. */
+  displayName: string;
+  /** Form state — game name being typed in JoinForm. */
+  pendingGameName: string;
+  /** Server-mirror of the canonical room state. Null until joined. */
+  game: MpGameState | null;
+  connectionStatus: ConnectionStatus;
+  /** Most recent server error message — surfaced in the panel for one beat. */
+  lastError: string | null;
+  /** Last 10 server events shown in the recent-activity feed. */
+  recentEvents: MultiplayerEventEntry[];
+  /** Captured payload from the most-recent `game_ended` frame, retained
+   *  through the 'ended' panel state so the breakdown survives state changes. */
+  lastResults: ResultsPayload | null;
+  /** Most recently used game names (newest first). Surfaced in JoinForm. */
+  recentGames: string[];
+  /** Set once the user has started a game in this session — used by
+   *  BoggleRoot to know whether to swap the local board back when the
+   *  multiplayer game ends or the user leaves. */
+  hasSwappedBoard: boolean;
+  /** noSerialize'd refs — kept on the store so they survive between renders
+   *  without serializing into the SSR HTML. */
+  refs: {
+    client?: NoSerialize<MultiplayerClient>;
+    /** Snapshot of the local single-player board to restore after game end. */
+    savedBoardChars?: NoSerialize<string[]>;
+    savedBoardSize?: number;
+    /** Live signal the panel can write to bump the "found-word counter" UI
+     *  separate from server state, used for short-lived flash animations. */
+    flashTickSignal?: Signal<number>;
+  };
+}
+
+export const MultiplayerCtx = createContext<MultiplayerState>('multiplayer-context');
 
 /**
  * Per-run row in the multi-run dashboard. Serializable subset of

@@ -286,6 +286,53 @@ export const handleFoundWord = $(
   }
 );
 
+/**
+ * Multiplayer variant of handleFoundWord. Same local validation +
+ * confetti/audio feedback as single-player, but instead of committing
+ * the word into `answersState.foundWords` it returns the validated word
+ * so the caller can emit it over WebSocket. The local commit happens
+ * later, in the BoggleRoot useTask$ that mirrors the server's
+ * `player_found` echo into `answersState`.
+ *
+ * Returns the validated word, or null if the local check rejected it.
+ */
+export const handleFoundWordForMultiplayer = $(
+  (
+    gameState: GameState,
+    dictionaryState: DictionaryState,
+    answersState: AnswersState,
+    audioState: any
+  ): string | null => {
+    const word = gameState.selectedChars
+      .map((element) => element.char)
+      .join('')
+      .toLocaleLowerCase();
+
+    const isWordInDict =
+      Boolean(word.length) && dictionaryState.dictionary.includes(word);
+    const isWordNotFound = !answersState.foundWords.includes(word);
+    const isWordLongEnough = word.length >= gameState.minCharLength;
+
+    if (isWordInDict && isWordNotFound && isWordLongEnough) {
+      gameState.isWordFound = true;
+      fireworks();
+      if (audioState.foundWord) {
+        if (!audioState.foundWord.paused) {
+          audioState.foundWord.pause();
+          audioState.foundWord.currentTime = 0;
+        }
+        audioState.foundWord.play();
+      }
+      setTimeout(() => {
+        gameState.isWordFound = false;
+        gameState.selectedChars = [];
+      }, 300);
+      return word;
+    }
+    return null;
+  }
+);
+
 export const bgColor = (
   isCharSelected: boolean,
   isWordFound: boolean

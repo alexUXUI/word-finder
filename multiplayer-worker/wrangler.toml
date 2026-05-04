@@ -1,0 +1,22 @@
+# Multiplayer Worker — hosts the GameRoom Durable Object.
+#
+# Per spike finding (docs/PLAN_MULTIPLAYER.md §3): Cloudflare Pages cannot
+# host a DO class itself. The Pages project (`word-finder`) binds to this
+# Worker via [[durable_objects.bindings]] script_name = "word-finder-multiplayer".
+
+name = "word-finder-multiplayer"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[durable_objects.bindings]]
+name = "GAME_ROOM"
+class_name = "GameRoom"
+
+[[migrations]]
+tag = "multiplayer-v1"
+new_classes = ["GameRoom"]
+# Note: in production with wrangler@4 prefer `new_sqlite_classes` (cheaper,
+# new default storage backend). Using `new_classes` here for local-dev
+# compatibility with the wrangler@3 pinned for macOS 13.2 (the bundled
+# workerd in wrangler@4 needs macOS 13.5+).
