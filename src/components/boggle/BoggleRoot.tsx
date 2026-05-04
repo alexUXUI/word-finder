@@ -13,6 +13,7 @@ import { WordsPanel } from './controls/WordsPanel';
 import { BoggleBoard } from './board/Board';
 import { SmartBanner } from './intelligence/SmartBanner';
 import { PipelineLab } from './lab/PipelineLab';
+import { BatchDashboard } from './dashboard/BatchDashboard';
 import { VersionFooter } from './VersionFooter';
 import { installVersionGlobals } from '../../version';
 import { calculateCellWidth, handleFoundWord } from './logic/board';
@@ -46,11 +47,12 @@ export interface BoggleProps {
     language: LanguageType;
     minCharLength: number;
     minWordsPerBoard: number;
+    attemptsPerReset: number;
   };
 }
 
 export const BoogleRoot = component$(({ data }: BoggleProps) => {
-  const { board, boardWidth, boardSize, language, minCharLength, minWordsPerBoard } = data;
+  const { board, boardWidth, boardSize, language, minCharLength, minWordsPerBoard, attemptsPerReset } = data;
 
   const dictionaryState = useStore<DictionaryState>({ dictionary: [] });
 
@@ -67,6 +69,7 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
     language: language,
     minCharLength: minCharLength ?? 0,
     minWordsPerBoard: minWordsPerBoard ?? 150,
+    attemptsPerReset: attemptsPerReset ?? 10,
     currentLevel: 1,
     wordsUntilNextLevel: 1,
     levelStepSize: 1,
@@ -173,6 +176,7 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
     <div class="h-[100%] dont-scroll">
       <Controls />
       <SmartBanner />
+      <BatchDashboard />
       <UserGameStats />
       <BoggleBoard />
       <WordsPanel />

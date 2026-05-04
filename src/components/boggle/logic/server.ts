@@ -10,6 +10,7 @@ export interface ServerData {
   language: LanguageType;
   minCharLength: number;
   minWordsPerBoard: number;
+  attemptsPerReset: number;
 }
 
 type ReqArgs = {
@@ -25,6 +26,9 @@ export const gameConfig = {
   // Smart Mode hard floor: never accept a board with fewer player-relevant
   // words than this. Override via ?minWords=N. Non-smart Reset ignores it.
   minWordsPerBoard: 150,
+  // Number of independent pipeline runs per Reset. Best is shown to the
+  // player; all N go to the dashboard. Override via ?attempts=N.
+  attemptsPerReset: 10,
   language: Language.English,
 };
 
@@ -32,6 +36,7 @@ export const handleGet = ({ url, request }: ReqArgs): ServerData => {
   let language = gameConfig.language;
   let minCharLength = gameConfig.minCharLength;
   let minWordsPerBoard = gameConfig.minWordsPerBoard;
+  let attemptsPerReset = gameConfig.attemptsPerReset;
   let boardSize = gameConfig.boardSize;
 
   let board = randomBoard(language, boardSize).split('');
@@ -62,6 +67,13 @@ export const handleGet = ({ url, request }: ReqArgs): ServerData => {
     }
   }
 
+  if (paramsObject.attempts) {
+    const parsed = parseInt(paramsObject.attempts);
+    if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 50) {
+      attemptsPerReset = parsed;
+    }
+  }
+
   return {
     board,
     boardWidth,
@@ -69,6 +81,7 @@ export const handleGet = ({ url, request }: ReqArgs): ServerData => {
     language,
     minCharLength,
     minWordsPerBoard,
+    attemptsPerReset,
   };
 };
 

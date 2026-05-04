@@ -56,6 +56,12 @@ export interface GameState {
    * ignores it (single-shot has no retry budget).
    */
   minWordsPerBoard: number;
+  /**
+   * Number of independent end-to-end pipeline runs per Reset. The runner
+   * runs the champion pipeline N times, picks the best, applies it as the
+   * live board. The dashboard surfaces all N for inspection. Default 10.
+   */
+  attemptsPerReset: number;
   currentLevel: number;
   wordsUntilNextLevel: number;
   levelStepSize: number;

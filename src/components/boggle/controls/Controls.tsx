@@ -171,8 +171,8 @@ export const Controls = component$(() => {
       smart.liveTokens = '';
       smart.searchProgress = undefined;
       try {
-        const { runPipeline } = await import(
-          '../intelligence/pipeline/runner'
+        const { runPipelineBatch, pickBest } = await import(
+          '../intelligence/pipeline/batch-runner'
         );
         const { initializePipelines } = await import(
           '../intelligence/pipelines'
@@ -200,55 +200,108 @@ export const Controls = component$(() => {
           throw new Error('Dictionary not loaded yet');
         }
         smart.generationStage = 'generating';
-        const result = await runPipeline(champion, {
-          goal: {
-            size: boardState.boardSize,
-            minWordLength: gameState.minCharLength,
-            language: gameState.language,
-            style: 'long-word-heavy',
-            difficulty: 'medium',
-            minPlayerRelevantWords: gameState.minWordsPerBoard,
+
+        // Multi-run: champion pipeline runs N times. Best becomes the live
+        // board; all N populate the dashboard. Live progress fires after
+        // each completed run.
+        const totalRuns = Math.max(1, gameState.attemptsPerReset || 10);
+        smart.batchProgress = { completed: 0, total: totalRuns, bestSoFar: 0 };
+        smart.lastBatch = [];
+
+        const allResults = await runPipelineBatch(
+          champion,
+          {
+            goal: {
+              size: boardState.boardSize,
+              minWordLength: gameState.minCharLength,
+              language: gameState.language,
+              style: 'long-word-heavy',
+              difficulty: 'medium',
+              minPlayerRelevantWords: gameState.minWordsPerBoard,
+            },
+            dictionary: dict,
+            model: provider,
+            tracer,
+            callbacks: {
+              onNarrate: (line) => {
+                smart.narration = [...smart.narration, line];
+                smart.liveTokens = '';
+                if (line.startsWith('🤔') || line.startsWith('🔍')) {
+                  smart.generationStage = line;
+                } else if (line.startsWith('💬')) {
+                  smart.generationStage = 'explaining';
+                }
+              },
+              onTokenStream: (_chunk, accumulator) => {
+                smart.liveTokens = accumulator;
+              },
+              onSearchProgress: (info) => {
+                smart.searchProgress = {
+                  index: info.index,
+                  total: info.total,
+                  bestScore: info.bestScore,
+                  playerRelevantWords: info.playerRelevantWords,
+                };
+              },
+            },
           },
-          dictionary: dict,
-          model: provider,
-          tracer,
-          callbacks: {
-            onNarrate: (line) => {
-              smart.narration = [...smart.narration, line];
-              smart.liveTokens = '';
-              if (line.startsWith('🤔') || line.startsWith('🔍')) {
-                smart.generationStage = line;
-              } else if (line.startsWith('💬')) {
-                smart.generationStage = 'explaining';
-              }
-            },
-            onTokenStream: (_chunk, accumulator) => {
-              smart.liveTokens = accumulator;
-            },
-            onSearchProgress: (info) => {
-              smart.searchProgress = {
-                index: info.index,
-                total: info.total,
-                bestScore: info.bestScore,
-                playerRelevantWords: info.playerRelevantWords,
+          {
+            runs: totalRuns,
+            onRunComplete: (r, idx, _all) => {
+              smart.lastBatch = [
+                ...(smart.lastBatch ?? []),
+                {
+                  idx,
+                  pipelineId: champion.id,
+                  board: r.board,
+                  finalScore: r.score.finalScore,
+                  playerRelevantWords: r.score.playerRelevantWords,
+                  maxWordLength: r.score.maxWordLength,
+                  averageWordLength: r.score.averageWordLength,
+                  vowelRatio: r.score.vowelRatio,
+                  letterEntropy: r.score.letterEntropy,
+                  prefixDiversity: r.score.prefixDiversity,
+                  strategy: r.strategy,
+                  candidatesEvaluated: r.candidatesEvaluated,
+                  mutationsApplied: r.mutationsApplied,
+                  modelCalls: r.modelCalls,
+                  elapsedMs: r.elapsedMs,
+                  floorMet: r.floorMet,
+                  criticScore: r.criticScore,
+                  explanation: r.explanation,
+                },
+              ];
+              smart.batchProgress = {
+                completed: idx + 1,
+                total: totalRuns,
+                bestSoFar: Math.max(
+                  smart.batchProgress?.bestSoFar ?? 0,
+                  r.score.playerRelevantWords
+                ),
               };
             },
-          },
-        });
+          }
+        );
+
+        const result = pickBest(allResults);
         boardState.chars = [...result.board];
         answersState.answers = [];
         smart.lastExplanation = result.explanation;
         smart.lastStrategy = result.strategy;
         smart.lastFinalScore = result.score.finalScore;
-        smart.lastModelCalls = result.modelCalls;
-        smart.lastElapsedMs = result.elapsedMs;
+        smart.lastModelCalls = allResults.reduce((s, r) => s + r.modelCalls, 0);
+        smart.lastElapsedMs = allResults.reduce((s, r) => s + r.elapsedMs, 0);
         smart.lastFloorMet = result.floorMet;
-        smart.lastAttempts = 1;
+        smart.lastAttempts = allResults.length;
         smart.lastFloorTarget = gameState.minWordsPerBoard;
         smart.lastPlayerRelevantWords = result.score.playerRelevantWords;
-        smart.lastTotalCandidates = result.candidatesEvaluated;
+        smart.lastTotalCandidates = allResults.reduce(
+          (s, r) => s + r.candidatesEvaluated,
+          0
+        );
         smart.generationStatus = 'complete';
         smart.generationStage = undefined;
+        smart.batchProgress = undefined;
         worker.mod?.postMessage({
           language: gameState.language,
           board: boardState.chars,
@@ -333,6 +386,16 @@ export const Controls = component$(() => {
       const v = e.target.valueAsNumber;
       // Defensive: clamp to a sane range. Negative or NaN means "no floor".
       gameState.minWordsPerBoard = Number.isFinite(v) && v >= 0 ? v : 0;
+    }
+  );
+
+  const handleChangeAttemptsPerReset = $(
+    (e: QwikChangeEvent<HTMLInputElement>) => {
+      const v = e.target.valueAsNumber;
+      // Range [1, 50] — too many runs and Reset takes minutes; too few
+      // defeats the dashboard purpose.
+      const clamped = Number.isFinite(v) ? Math.max(1, Math.min(50, v)) : 10;
+      gameState.attemptsPerReset = clamped;
     }
   );
 
@@ -443,6 +506,26 @@ export const Controls = component$(() => {
                 onChange$={handleChangeMinWordsPerBoard}
                 value={gameState.minWordsPerBoard}
                 class="pl-2 rounded-md w-[80px] h-[40px] border-2 border-blue-900"
+              />
+            </div>
+            <div class="flex flex-col my-[10px]">
+              <label
+                for="attempts-per-reset"
+                class="text-[14px]"
+                title="Number of independent pipeline runs per Reset. The dashboard shows all runs ranked; the player gets the best."
+              >
+                Attempts
+              </label>
+              <input
+                id="attempts-per-reset"
+                data-testid="attempts-per-reset-input"
+                type="number"
+                min="1"
+                max="50"
+                step="1"
+                onChange$={handleChangeAttemptsPerReset}
+                value={gameState.attemptsPerReset}
+                class="pl-2 rounded-md w-[70px] h-[40px] border-2 border-blue-900"
               />
             </div>
             <div class="flex flex-col my-[10px]">
