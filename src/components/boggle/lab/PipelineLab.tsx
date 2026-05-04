@@ -305,7 +305,8 @@ export const PipelineLab = component$(() => {
           type="button"
           data-testid="pipeline-lab-toggle"
           onClick$={open}
-          style="position: fixed; top: 50%; right: 0; transform: translateY(-50%); z-index: 100; background: #2563eb; color: white; border: 0; padding: 8px 6px; border-radius: 8px 0 0 8px; cursor: pointer; font-size: 11px; font-weight: 600; writing-mode: vertical-rl; text-orientation: mixed;"
+          class="glass-tab"
+          style="top: 56%;"
         >
           🧪 Pipeline Lab
         </button>
@@ -314,19 +315,21 @@ export const PipelineLab = component$(() => {
       <aside
         data-testid="pipeline-lab-panel"
         data-open={builder.open ? 'true' : 'false'}
-        style={`position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 95vw); background: white; border-left: 1px solid #e5e7eb; box-shadow: -2px 0 16px rgba(0,0,0,0.08); z-index: 110; overflow-y: auto; transform: translateX(${builder.open ? '0' : '100%'}); transition: transform 0.2s ease-out;`}
+        class="glass-panel"
+        style={`position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 95vw); z-index: 110; overflow-y: auto; transform: translateX(${builder.open ? '0' : '100%'}); transition: transform 0.22s ease-out;`}
       >
-        <div style="padding: 12px; display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+        <div style="padding: 14px 14px 24px; display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
           <header style="display: flex; align-items: center; justify-content: space-between;">
-            <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: #1e3a8a;">
+            <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: #1e3a8a; letter-spacing: 0.01em;">
               🧪 Pipeline Lab
             </h2>
             <button
               type="button"
               data-testid="pipeline-lab-close"
               onClick$={close}
-              style="background: transparent; border: 0; cursor: pointer; font-size: 18px; padding: 4px 8px;"
+              class="glass-btn-icon"
               aria-label="Close panel"
+              style="font-size: 18px;"
             >
               ×
             </button>
@@ -336,15 +339,17 @@ export const PipelineLab = component$(() => {
           <div
             data-testid="pipeline-lab-champion"
             data-champion-id={championId.value ?? ''}
-            style="background: #ecfeff; border-left: 4px solid #0891b2; padding: 8px 10px; font-size: 12px;"
+            class="glass-banner"
           >
             <strong>Champion:</strong>{' '}
-            <code data-testid="pipeline-lab-champion-id">{championId.value ?? '(none)'}</code>{' '}
+            <code data-testid="pipeline-lab-champion-id" style="font-family: ui-monospace, monospace;">
+              {championId.value ?? '(none)'}
+            </code>{' '}
             — what Smart Mode runs in the player UI.
           </div>
 
           {/* Tabs */}
-          <nav role="tablist" style="display: flex; gap: 4px; border-bottom: 1px solid #e5e7eb;">
+          <nav role="tablist" style="display: flex; gap: 4px; border-bottom: 1px solid rgba(30,58,138,0.15);">
             {[
               { id: 'pipelines', label: 'Pipelines' },
               { id: 'bench', label: 'Bench' },
@@ -357,16 +362,16 @@ export const PipelineLab = component$(() => {
                 data-testid={`pipeline-lab-tab-${t.id}`}
                 aria-selected={tab.value === t.id ? 'true' : 'false'}
                 onClick$={() => setTab(t.id as 'pipelines' | 'bench' | 'saved')}
-                style={`padding: 8px 12px; border: 0; cursor: pointer; background: ${tab.value === t.id ? 'white' : '#f8fafc'}; font-weight: ${tab.value === t.id ? '600' : '400'}; border-bottom: 2px solid ${tab.value === t.id ? '#2563eb' : 'transparent'}; font-size: 13px;`}
+                style={`padding: 8px 14px; border: 0; cursor: pointer; background: ${tab.value === t.id ? 'rgba(255,255,255,0.85)' : 'transparent'}; font-weight: ${tab.value === t.id ? '600' : '400'}; color: ${tab.value === t.id ? '#1e3a8a' : '#475569'}; border-bottom: 2px solid ${tab.value === t.id ? '#2563eb' : 'transparent'}; font-size: 13px; border-radius: 6px 6px 0 0; transition: background 0.12s;`}
               >
                 {t.label}
               </button>
             ))}
           </nav>
 
-          {/* Prompt — visible across all tabs since it threads into runs */}
-          <section>
-            <label style="display: block; font-weight: 600; margin-bottom: 4px; font-size: 12px;">
+          {/* Prompt */}
+          <section class="glass-card" style="padding: 10px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 4px; font-size: 12px; color: #1e3a8a;">
               Goal description (threads into pipeline runs)
             </label>
             <textarea
@@ -375,15 +380,12 @@ export const PipelineLab = component$(() => {
               value={prompt.value}
               onInput$={(_, el) => updatePrompt(el.value)}
               placeholder="e.g. 'long words ending in -ing', 'rare letters', 'chaotic mix'"
-              style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; resize: vertical;"
+              style="width: 100%; padding: 8px; border: 2px solid rgba(30,58,138,0.4); border-radius: 6px; font-size: 12px; resize: vertical; background: rgba(255,255,255,0.7); font-family: inherit;"
             />
           </section>
 
           {smart.modelStatus !== 'ready' && (
-            <div
-              data-testid="pipeline-lab-no-model"
-              style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 8px 10px; font-size: 12px;"
-            >
+            <div data-testid="pipeline-lab-no-model" class="glass-banner-warn">
               SLM not loaded. Click <strong>Reset Board</strong> in the main panel to load it, then come back to run pipelines that use a model.
             </div>
           )}
@@ -400,18 +402,17 @@ export const PipelineLab = component$(() => {
                       key={p.id}
                       data-testid="pipeline-card"
                       data-pipeline-id={p.id}
-                      style={`border: 1px solid ${isChamp ? '#0891b2' : '#e5e7eb'}; border-radius: 8px; padding: 10px; background: ${isChamp ? '#ecfeff' : 'white'};`}
+                      class={isChamp ? 'glass-card-accent' : 'glass-card'}
+                      style="padding: 10px;"
                     >
                       <header style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                        <div>
-                          <code style="font-weight: 600; font-size: 13px;">{p.id}</code>
-                          <span style="margin-left: 6px; color: #777; font-size: 11px;">
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                          <code style="font-weight: 600; font-size: 13px; background: rgba(30,58,138,0.08); padding: 2px 8px; border-radius: 6px; color: #1e3a8a;">{p.id}</code>
+                          <span style="color: #64748b; font-size: 11px;">
                             {`v${p.version}`}
                           </span>
                           {isChamp ? (
-                            <span style="margin-left: 6px; background: #0891b2; color: white; font-size: 10px; padding: 1px 6px; border-radius: 999px;">
-                              champion
-                            </span>
+                            <span class="glass-pill">champion</span>
                           ) : null}
                         </div>
                         <span style="display: inline-flex; gap: 4px;">
@@ -421,7 +422,6 @@ export const PipelineLab = component$(() => {
                             disabled={smart.modelStatus !== 'ready'}
                             onClick$={async () => {
                               const rows = await runPipelineN(p.id, 5);
-                              // Update local card score from this fresh run.
                               const ws = rows.map((r) => r.playerRelevantWords).sort((a, b) => a - b);
                               const mean = ws.length ? ws.reduce((a, b) => a + b, 0) / ws.length : 0;
                               const next = [
@@ -445,7 +445,7 @@ export const PipelineLab = component$(() => {
                               cardScores.value = next;
                               persistCardScores(next);
                             }}
-                            style="padding: 4px 8px; border: 1px solid #2563eb; background: white; color: #2563eb; border-radius: 4px; cursor: pointer; font-size: 11px;"
+                            class="glass-btn"
                           >
                             Run 5×
                           </button>
@@ -454,20 +454,20 @@ export const PipelineLab = component$(() => {
                               type="button"
                               data-testid="pipeline-card-promote"
                               onClick$={() => promote(p.id)}
-                              style="padding: 4px 8px; border: 1px solid #0891b2; background: white; color: #0891b2; border-radius: 4px; cursor: pointer; font-size: 11px;"
+                              class="glass-btn-promote"
                             >
-                              Promote to champion
+                              Promote
                             </button>
                           )}
                         </span>
                       </header>
-                      <p style="margin: 6px 0 0 0; font-size: 12px; color: #444;">
+                      <p style="margin: 6px 0 0 0; font-size: 12px; color: #334155; line-height: 1.4;">
                         {p.description}
                       </p>
                       {card ? (
                         <div
                           data-testid="pipeline-card-scores"
-                          style="margin-top: 6px; font-size: 11px; color: #555; font-family: ui-monospace, monospace;"
+                          style="margin-top: 8px; font-size: 11px; color: #1e3a8a; font-family: ui-monospace, monospace; background: rgba(255,255,255,0.4); padding: 4px 8px; border-radius: 4px;"
                         >
                           {Object.entries(card.perGoal).map(([g, s]) => (
                             <div key={g}>
@@ -476,7 +476,7 @@ export const PipelineLab = component$(() => {
                           ))}
                         </div>
                       ) : (
-                        <div style="margin-top: 6px; font-size: 11px; color: #999;">
+                        <div style="margin-top: 8px; font-size: 11px; color: #94a3b8; font-style: italic;">
                           No bench data yet. Click Run 5× to populate.
                         </div>
                       )}
@@ -490,8 +490,8 @@ export const PipelineLab = component$(() => {
           {/* Bench tab */}
           {tab.value === 'bench' && (
             <section data-testid="pipeline-lab-bench" style="display: flex; flex-direction: column; gap: 12px;">
-              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                <label style="font-size: 12px;">Champion</label>
+              <div class="glass-card" style="padding: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <label style="font-size: 12px; font-weight: 600; color: #1e3a8a;">Champion</label>
                 <select
                   data-testid="bench-champion-select"
                   value={championId.value ?? ''}
@@ -499,20 +499,20 @@ export const PipelineLab = component$(() => {
                     championId.value = el.value;
                     persistChampion(el.value);
                   }}
-                  style="font-size: 12px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px;"
+                  style="font-size: 12px; padding: 6px 8px; border: 2px solid rgba(30,58,138,0.4); border-radius: 6px; background: rgba(255,255,255,0.7);"
                 >
                   {pipelines.value.map((p) => (
                     <option key={p.id} value={p.id}>{p.id}</option>
                   ))}
                 </select>
-                <label style="font-size: 12px;">vs.</label>
+                <label style="font-size: 12px; color: #64748b;">vs.</label>
                 <select
                   data-testid="bench-challenger-select"
                   value={challengerId.value}
                   onChange$={(_, el) => {
                     challengerId.value = el.value;
                   }}
-                  style="font-size: 12px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px;"
+                  style="font-size: 12px; padding: 6px 8px; border: 2px solid rgba(30,58,138,0.4); border-radius: 6px; background: rgba(255,255,255,0.7);"
                 >
                   {pipelines.value
                     .filter((p) => p.id !== championId.value)
@@ -527,9 +527,9 @@ export const PipelineLab = component$(() => {
                     data-testid={`bench-run-${n}`}
                     disabled={smart.modelStatus !== 'ready' || bench.value?.isRunning}
                     onClick$={() => runBench(n)}
-                    style="padding: 4px 10px; border: 1px solid #2563eb; background: white; color: #2563eb; border-radius: 4px; cursor: pointer; font-size: 12px;"
+                    class="glass-btn"
                   >
-                    Run {n} pairs
+                    Run {n}×
                   </button>
                 ))}
                 {bench.value?.isRunning && (
@@ -537,27 +537,28 @@ export const PipelineLab = component$(() => {
                     type="button"
                     data-testid="bench-cancel"
                     onClick$={cancelBench}
-                    style="padding: 4px 10px; border: 1px solid #dc2626; background: #fff; color: #dc2626; border-radius: 4px; cursor: pointer; font-size: 12px;"
+                    class="glass-btn"
+                    style="border-color: #dc2626; color: #dc2626;"
                   >
                     Cancel
                   </button>
                 )}
               </div>
               {bench.value?.isRunning && (
-                <div data-testid="bench-progress" style="font-size: 12px; color: #555;">
+                <div data-testid="bench-progress" class="glass-banner">
                   {`Running ${bench.value.completed} / ${bench.value.total}…`}
                 </div>
               )}
               {bench.value && bench.value.championResults.length > 0 && (
-                <div data-testid="bench-results" style="font-size: 12px;">
-                  <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                    <thead style="background: #f8fafc;">
+                <div data-testid="bench-results" class="glass-card" style="padding: 10px; font-size: 12px;">
+                  <table class="glass-table">
+                    <thead>
                       <tr>
-                        <th style="padding: 4px; text-align: left;">Pipeline</th>
-                        <th style="padding: 4px;">N</th>
-                        <th style="padding: 4px;">Mean words</th>
-                        <th style="padding: 4px;">Mean ms</th>
-                        <th style="padding: 4px;">Mean swaps</th>
+                        <th style="text-align: left;">Pipeline</th>
+                        <th>N</th>
+                        <th>Words</th>
+                        <th>ms</th>
+                        <th>Swaps</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -567,61 +568,59 @@ export const PipelineLab = component$(() => {
                         const meanElapsed = rows.length ? rows.reduce((a, r) => a + r.elapsedMs, 0) / rows.length : 0;
                         const meanSwaps = rows.length ? rows.reduce((a, r) => a + r.mutationsApplied, 0) / rows.length : 0;
                         return (
-                          <tr key={id} style={`border-top: 1px solid #f1f5f9; ${idx === 0 ? 'background: #ecfeff;' : ''}`}>
-                            <td style="padding: 4px;"><code>{id}</code></td>
-                            <td style="padding: 4px; text-align: center;">{rows.length}</td>
-                            <td style="padding: 4px; text-align: center; font-weight: 600;">
-                              {meanWords.toFixed(1)}
-                            </td>
-                            <td style="padding: 4px; text-align: center;">
-                              {meanElapsed.toFixed(0)}
-                            </td>
-                            <td style="padding: 4px; text-align: center;">
-                              {meanSwaps.toFixed(1)}
-                            </td>
+                          <tr key={id} data-is-best={idx === 0 ? 'true' : 'false'}>
+                            <td style="text-align: left;"><code style="background: rgba(30,58,138,0.08); padding: 1px 6px; border-radius: 4px;">{id}</code></td>
+                            <td>{rows.length}</td>
+                            <td style="font-weight: 600;">{meanWords.toFixed(1)}</td>
+                            <td>{meanElapsed.toFixed(0)}</td>
+                            <td>{meanSwaps.toFixed(1)}</td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
-                  <div data-testid="bench-delta" style="margin-top: 8px; font-size: 12px;">
+                  <div data-testid="bench-delta" style="margin-top: 10px; font-size: 12px; padding: 6px 10px; border-radius: 6px; background: rgba(255,255,255,0.5);">
                     {(() => {
                       const a = meanOf(bench.value!.championResults);
                       const b = meanOf(bench.value!.challengerResults);
                       const d = b - a;
                       const sign = d >= 0 ? '+' : '';
-                      const color = d > 0 ? '#16a34a' : d < 0 ? '#dc2626' : '#555';
+                      const color = d > 0 ? '#16a34a' : d < 0 ? '#dc2626' : '#475569';
                       return (
-                        <span style={`color: ${color};`}>
-                          {`Δ player-words: ${sign}${d.toFixed(1)} (challenger ${d > 0 ? 'beats' : d < 0 ? 'loses to' : 'ties'} champion)`}
+                        <span style={`color: ${color}; font-weight: 600;`}>
+                          {`Δ words: ${sign}${d.toFixed(1)} — challenger ${d > 0 ? 'beats' : d < 0 ? 'loses to' : 'ties'} champion`}
                         </span>
                       );
                     })()}
                   </div>
-                  {/* Per-row board grid for inspection */}
-                  <details style="margin-top: 8px;">
-                    <summary style="cursor: pointer; font-size: 12px; color: #555;">Per-board details</summary>
-                    <div style="margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-family: ui-monospace, monospace; font-size: 10px;">
+                  <details style="margin-top: 10px;">
+                    <summary style="cursor: pointer; font-size: 12px; color: #1e3a8a; font-weight: 600;">Per-board details</summary>
+                    <div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-family: ui-monospace, monospace; font-size: 10px;">
                       {[...bench.value.championResults.map((r) => ({ ...r, side: 'C' })), ...bench.value.challengerResults.map((r) => ({ ...r, side: '♣' }))].map((r) => (
                         <div
                           key={r.id}
-                          style={`padding: 4px; background: ${r.side === 'C' ? '#ecfeff' : '#fef3c7'}; border-radius: 4px;`}
+                          class="glass-card"
+                          style={`padding: 6px; ${r.side === 'C' ? 'border-color: rgba(8,145,178,0.4);' : 'border-color: rgba(245,158,11,0.4);'}`}
                         >
-                          <div>{`${r.side} ${r.pipelineId} · ${r.playerRelevantWords}w · ${r.elapsedMs.toFixed(0)}ms`}</div>
-                          <button
-                            type="button"
-                            onClick$={() => loadBoardIntoGame(r as BatchRow)}
-                            style="margin-top: 2px; background: transparent; border: 0; cursor: pointer; padding: 0; color: #2563eb; font-size: 10px;"
-                          >
-                            Load · Save{' '}
-                          </button>
-                          <button
-                            type="button"
-                            onClick$={() => saveBoard(r as BatchRow)}
-                            style="background: transparent; border: 0; cursor: pointer; padding: 0; color: #2563eb; font-size: 10px;"
-                          >
-                            ☆
-                          </button>
+                          <div style="color: #1e3a8a;">{`${r.side} ${r.pipelineId} · ${r.playerRelevantWords}w · ${r.elapsedMs.toFixed(0)}ms`}</div>
+                          <div style="margin-top: 4px; display: flex; gap: 4px;">
+                            <button
+                              type="button"
+                              onClick$={() => loadBoardIntoGame(r as BatchRow)}
+                              class="glass-btn-icon"
+                              title="Load this board into the game"
+                            >
+                              ↩
+                            </button>
+                            <button
+                              type="button"
+                              onClick$={() => saveBoard(r as BatchRow)}
+                              class="glass-btn-icon"
+                              title="Save board"
+                            >
+                              ☆
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -637,30 +636,33 @@ export const PipelineLab = component$(() => {
               {(builder.savedBoards as unknown as SavedBoard[]).length === 0 ? (
                 <div
                   data-testid="pipeline-lab-saved-empty"
-                  style="font-size: 12px; color: #777; padding: 8px; background: #f8fafc; border-radius: 6px;"
+                  class="glass-card"
+                  style="font-size: 12px; color: #475569; padding: 14px; text-align: center; font-style: italic;"
                 >
                   Save a board from a Bench result to see it here. Saved boards persist across sessions.
                 </div>
               ) : (
-                <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px;">
+                <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">
                   {(builder.savedBoards as unknown as SavedBoard[]).map((s) => (
                     <li
                       key={s.id}
-                      style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; font-size: 12px;"
+                      class="glass-card"
+                      style="padding: 10px; font-size: 12px;"
                     >
                       <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
-                        <span style="font-weight: 600;">
+                        <span style="font-weight: 600; color: #1e3a8a;">
                           {`${s.playerRelevantWords} words · ${s.finalScore.toFixed(0)} score · ${s.pipelineId}`}
                         </span>
                         <button
                           type="button"
                           onClick$={() => loadBoardIntoGame(s)}
-                          style="background: transparent; border: 0; cursor: pointer; font-size: 14px; padding: 0 4px;"
+                          class="glass-btn-icon"
+                          title="Load into game"
                         >
                           ↩
                         </button>
                       </div>
-                      <div style="font-family: ui-monospace, monospace; color: #666; margin-top: 4px;">
+                      <div style="font-family: ui-monospace, monospace; color: #475569; margin-top: 6px; letter-spacing: 0.05em;">
                         {s.board.toUpperCase()}
                       </div>
                     </li>

@@ -302,6 +302,9 @@ export const Controls = component$(() => {
         smart.generationStatus = 'complete';
         smart.generationStage = undefined;
         smart.batchProgress = undefined;
+        // Pop the side-panel dashboard open so the player sees the spread.
+        // They can dismiss it; the right-edge "📊 Stats" tab brings it back.
+        smart.dashboardOpen = true;
         worker.mod?.postMessage({
           language: gameState.language,
           board: boardState.chars,

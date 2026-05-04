@@ -69,6 +69,8 @@ export interface SmartState {
     total: number;
     bestSoFar: number; // playerRelevantWords
   };
+  /** True when the side-panel dashboard is open. */
+  dashboardOpen?: boolean;
   /** True once the player has dismissed the current explanation banner. Reset on each new generation. */
   bannerDismissed: boolean;
   /** Holds noSerialize'd refs to SLM provider + MLflow tracer. */
