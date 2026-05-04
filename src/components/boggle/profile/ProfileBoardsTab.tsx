@@ -2,6 +2,7 @@ import { $, component$, useContext, type QRL } from '@builder.io/qwik';
 import { ProfileCtx } from '../context';
 import { removeFavoriteBoard } from './api';
 import type { FavoriteBoard } from './types';
+import { IconClose, IconStar } from '../../shell/icons';
 
 /**
  * Favorite Boards tab — grid of saved boards. Each card shows a small
@@ -27,11 +28,16 @@ export const ProfileBoardsTab = component$(() => {
 
   if (boards.length === 0) {
     return (
-      <div data-testid="profile-tab-body-boards" style="padding: 32px; text-align: center; background: #fff; border: 1px dashed #e2e8f0; border-radius: 12px; color: #64748b;">
-        <div style="font-size: 32px; margin-bottom: 8px;">⭐</div>
+      <div
+        data-testid="profile-tab-body-boards"
+        style="padding: 36px 24px; text-align: center; background: rgba(255,255,255,0.55); backdrop-filter: blur(12px) saturate(140%); -webkit-backdrop-filter: blur(12px) saturate(140%); border: 1px dashed rgba(15,23,42,0.12); border-radius: 12px; color: #64748b;"
+      >
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 999px; background: rgba(245,158,11,0.10); color: #f59e0b; margin-bottom: 12px;">
+          <IconStar size={22} />
+        </div>
         <div style="font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 4px;">No favorite boards yet</div>
         <div style="font-size: 13px;">
-          Hit 👍 on a row in the Batch Dashboard during play to save the board here.
+          Save a board from the Batch Dashboard during play and it'll show up here.
         </div>
       </div>
     );
@@ -58,7 +64,7 @@ export const BoardCard = component$<BoardCardProps>(({ board, onRemove$ }) => {
     <article
       data-testid="profile-board-card"
       data-board-id={board.id}
-      style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px;"
+      style="background: rgba(255,255,255,0.62); backdrop-filter: blur(12px) saturate(140%); -webkit-backdrop-filter: blur(12px) saturate(140%); border: 1px solid rgba(15,23,42,0.06); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 1px 3px rgba(15,23,42,0.04);"
     >
       <div
         style={`display: grid; grid-template-columns: repeat(${board.size}, 1fr); gap: 2px; aspect-ratio: 1; background: #f8fafc; padding: 6px; border-radius: 8px;`}
@@ -96,9 +102,9 @@ export const BoardCard = component$<BoardCardProps>(({ board, onRemove$ }) => {
           data-testid="profile-board-remove"
           onClick$={() => onRemove$(board.id)}
           aria-label="Remove favorite"
-          style="padding: 8px 10px; background: transparent; border: 1px solid #e2e8f0; color: #64748b; border-radius: 6px; cursor: pointer; font-size: 14px;"
+          style="display: inline-flex; align-items: center; justify-content: center; width: 36px; padding: 8px 10px; background: rgba(255,255,255,0.6); border: 1px solid rgba(15,23,42,0.08); color: #64748b; border-radius: 8px; cursor: pointer;"
         >
-          ×
+          <IconClose size={14} />
         </button>
       </div>
     </article>

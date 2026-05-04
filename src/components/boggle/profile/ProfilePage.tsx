@@ -1,16 +1,18 @@
 import { $, component$, Slot, useContext, useSignal } from '@builder.io/qwik';
 import { ProfileCtx } from '../context';
 import { Avatar } from '../../shell/Avatar';
+import { IconHome, IconStar, IconUsers, IconEdit, IconCheck, IconClose } from '../../shell/icons';
 import { ProfileBoardsTab } from './ProfileBoardsTab';
 import { ProfileFriendsTab } from './ProfileFriendsTab';
 import { updateDisplayName } from './api';
+import type { Component } from '@builder.io/qwik';
 
 type Tab = 'overview' | 'boards' | 'friends';
 
-export const TABS: Array<{ id: Tab; label: string; icon: string }> = [
-  { id: 'overview', label: 'Overview',        icon: '🏠' },
-  { id: 'boards',   label: 'Favorite Boards', icon: '⭐' },
-  { id: 'friends',  label: 'Friends',         icon: '👥' },
+export const TABS: Array<{ id: Tab; label: string; Icon: Component<{ size?: number; title?: string }> }> = [
+  { id: 'overview', label: 'Overview', Icon: IconHome  },
+  { id: 'boards',   label: 'Boards',   Icon: IconStar  },
+  { id: 'friends',  label: 'Friends',  Icon: IconUsers },
 ];
 
 /**
@@ -70,8 +72,21 @@ export const ProfilePage = component$(() => {
                 autoFocus
                 style="font-size: 22px; font-weight: 700; color: #0f172a; padding: 4px 8px; border: 1px solid #e2e8f0; border-radius: 6px; min-width: 220px;"
               />
-              <button type="button" data-testid="profile-name-save" onClick$={save} style="padding: 6px 12px; background: #f59e0b; color: #fff; border: 0; border-radius: 6px; font-weight: 600; cursor: pointer;">Save</button>
-              <button type="button" onClick$={cancelEdit} style="padding: 6px 12px; background: transparent; color: #64748b; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">Cancel</button>
+              <button
+                type="button"
+                data-testid="profile-name-save"
+                onClick$={save}
+                style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f59e0b; color: #fff; border: 0; border-radius: 8px; font-weight: 600; cursor: pointer;"
+              >
+                <IconCheck size={14} /> Save
+              </button>
+              <button
+                type="button"
+                onClick$={cancelEdit}
+                style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: transparent; color: #64748b; border: 1px solid rgba(15,23,42,0.10); border-radius: 8px; cursor: pointer;"
+              >
+                <IconClose size={14} /> Cancel
+              </button>
             </div>
           ) : (
             <div style="display: flex; align-items: center; gap: 10px;">
@@ -83,9 +98,9 @@ export const ProfilePage = component$(() => {
                 data-testid="profile-edit-name"
                 onClick$={beginEdit}
                 aria-label="Edit display name"
-                style="background: transparent; border: 1px solid #e2e8f0; color: #64748b; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;"
+                style="display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.6); border: 1px solid rgba(15,23,42,0.10); color: #475569; padding: 4px 10px; border-radius: 8px; font-size: 12px; cursor: pointer; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);"
               >
-                ✏️ Edit
+                <IconEdit size={13} /> Edit
               </button>
             </div>
           )}
@@ -101,21 +116,25 @@ export const ProfilePage = component$(() => {
       </header>
 
       {/* Tabs — horizontal scroll if too narrow to fit all three */}
-      <nav role="tablist" style="display: flex; gap: 2px; border-bottom: 1px solid #e2e8f0; margin-bottom: 24px; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+      <nav role="tablist" style="display: flex; gap: 2px; border-bottom: 1px solid rgba(15,23,42,0.08); margin-bottom: 22px; overflow-x: auto; -webkit-overflow-scrolling: touch;">
         {TABS.map((t) => {
           const active = tab.value === t.id;
+          const Icon = t.Icon;
+          const id = t.id;
           return (
             <button
-              key={t.id}
+              key={id}
               type="button"
               role="tab"
-              data-testid={`profile-tab-${t.id}`}
+              data-testid={`profile-tab-${id}`}
               data-active={active ? 'true' : 'false'}
               aria-selected={active}
-              onClick$={() => (tab.value = t.id)}
-              style={`padding: 10px 16px; background: transparent; border: 0; cursor: pointer; font-size: 13px; font-weight: ${active ? 600 : 500}; color: ${active ? '#0f172a' : '#64748b'}; border-bottom: 2px solid ${active ? '#f59e0b' : 'transparent'}; margin-bottom: -1px; display: flex; align-items: center; gap: 6px; transition: color 0.12s, border-color 0.12s; white-space: nowrap; flex: 0 0 auto;`}
+              onClick$={() => (tab.value = id)}
+              style={`padding: 10px 16px; background: transparent; border: 0; cursor: pointer; font-size: 13px; font-weight: ${active ? 600 : 500}; color: ${active ? '#0f172a' : '#64748b'}; border-bottom: 2px solid ${active ? '#f59e0b' : 'transparent'}; margin-bottom: -1px; display: flex; align-items: center; gap: 8px; transition: color 0.12s, border-color 0.12s; white-space: nowrap; flex: 0 0 auto;`}
             >
-              <span aria-hidden="true">{t.icon}</span>
+              <span style={`color: ${active ? '#0f172a' : '#94a3b8'}; display: inline-flex;`}>
+                <Icon size={15} />
+              </span>
               {t.label}
             </button>
           );
@@ -171,9 +190,9 @@ export const OverviewTab = component$(() => {
 export const Card = component$<{ title: string; testId: string }>(({ title, testId }) => (
   <section
     data-testid={testId}
-    style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px;"
+    style="background: rgba(255,255,255,0.55); backdrop-filter: blur(12px) saturate(140%); -webkit-backdrop-filter: blur(12px) saturate(140%); border: 1px solid rgba(15,23,42,0.06); border-radius: 12px; padding: 18px; box-shadow: 0 1px 3px rgba(15,23,42,0.04);"
   >
-    <h2 style="margin: 0 0 12px; font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase;">
+    <h2 style="margin: 0 0 12px; font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 0.10em; text-transform: uppercase;">
       {title}
     </h2>
     <div style="display: flex; flex-direction: column; gap: 10px;"><Slot /></div>

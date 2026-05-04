@@ -1,6 +1,7 @@
 import { $, component$, useContext, useSignal, type QRL } from '@builder.io/qwik';
 import { ProfileCtx } from '../context';
 import { Avatar } from '../../shell/Avatar';
+import { IconClose } from '../../shell/icons';
 import { addFriend, removeFriend } from './api';
 import type { FriendEntry, RecentPlayer } from './types';
 
@@ -65,7 +66,7 @@ export const ProfileFriendsTab = component$(() => {
   return (
     <div data-testid="profile-tab-body-friends" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
       {/* Friends list */}
-      <section style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px;">
+      <section style="background: rgba(255,255,255,0.55); backdrop-filter: blur(12px) saturate(140%); -webkit-backdrop-filter: blur(12px) saturate(140%); border: 1px solid rgba(15,23,42,0.06); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(15,23,42,0.04);">
         <h2 style="margin: 0 0 12px; font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase;">
           Friends ({me.friends.length})
         </h2>
@@ -98,7 +99,7 @@ export const ProfileFriendsTab = component$(() => {
 
         {me.friends.length === 0 ? (
           <div style="font-size: 13px; color: #94a3b8; text-align: center; padding: 16px;">
-            No friends yet. Add by player UUID, or from Recent players →
+            No friends yet. Add by player UUID, or pick from Recent players.
           </div>
         ) : (
           <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px;">
@@ -110,7 +111,7 @@ export const ProfileFriendsTab = component$(() => {
       </section>
 
       {/* Recent players */}
-      <section style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px;">
+      <section style="background: rgba(255,255,255,0.55); backdrop-filter: blur(12px) saturate(140%); -webkit-backdrop-filter: blur(12px) saturate(140%); border: 1px solid rgba(15,23,42,0.06); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(15,23,42,0.04);">
         <h2 style="margin: 0 0 12px; font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase;">
           Recent players ({me.recentPlayers.length})
         </h2>
@@ -139,7 +140,7 @@ export const ProfileFriendsTab = component$(() => {
                     </div>
                   </div>
                   {alreadyFriend ? (
-                    <span style="font-size: 10px; color: #16a34a; font-weight: 600; padding: 2px 8px; background: #dcfce7; border-radius: 999px;">
+                    <span style="font-size: 10px; color: #166534; font-weight: 600; padding: 3px 9px; background: rgba(34,197,94,0.14); border: 1px solid rgba(34,197,94,0.25); border-radius: 999px; letter-spacing: 0.04em;">
                       friend
                     </span>
                   ) : (
@@ -147,9 +148,9 @@ export const ProfileFriendsTab = component$(() => {
                       type="button"
                       data-testid="profile-recent-add-friend"
                       onClick$={() => addFromRecent(rp)}
-                      style="padding: 4px 10px; background: transparent; border: 1px solid #e2e8f0; color: #475569; font-size: 11px; border-radius: 6px; cursor: pointer;"
+                      style="padding: 4px 10px; background: rgba(255,255,255,0.6); border: 1px solid rgba(15,23,42,0.10); color: #475569; font-size: 11px; border-radius: 8px; cursor: pointer; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); font-weight: 500;"
                     >
-                      + friend
+                      Add friend
                     </button>
                   )}
                 </li>
@@ -187,9 +188,9 @@ export const FriendRow = component$<FriendRowProps>(({ friend, onDrop$ }) => (
       data-testid="profile-friend-remove"
       onClick$={() => onDrop$(friend.playerId)}
       aria-label="Remove friend"
-      style="padding: 4px 8px; background: transparent; border: 0; color: #cbd5e1; font-size: 16px; cursor: pointer;"
+      style="display: inline-flex; align-items: center; justify-content: center; padding: 4px 6px; background: transparent; border: 0; color: #cbd5e1; cursor: pointer;"
     >
-      ×
+      <IconClose size={14} />
     </button>
   </li>
 ));

@@ -1,34 +1,30 @@
 import { component$, useContext } from '@builder.io/qwik';
 import { useLocation } from '@builder.io/qwik-city';
 import { ProfileCtx } from '../boggle/context';
+import { IconPlay, IconUser } from './icons';
+import type { Component } from '@builder.io/qwik';
 
 interface NavItem {
   href: string;
   label: string;
-  icon: string;
+  Icon: Component<{ size?: number; title?: string }>;
   testId: string;
 }
 
 export const ITEMS: NavItem[] = [
-  { href: '/',         label: 'Play',    icon: '🎯', testId: 'leftnav-play' },
-  { href: '/profile/', label: 'Profile', icon: '👤', testId: 'leftnav-profile' },
+  { href: '/',         label: 'Play',    Icon: IconPlay, testId: 'leftnav-play' },
+  { href: '/profile/', label: 'Profile', Icon: IconUser, testId: 'leftnav-profile' },
 ];
 
 /**
- * Vertical sidebar — the fixed-position chrome on the left edge.
+ * Vertical sidebar — frosted glass shell.
  *
- * Two layout modes, driven by ProfileCtx.isCompactViewport (set by
- * ChromeViewportObserver on resize):
+ *  - Desktop (>720 px): persistent 200 px sidebar.
+ *  - Mobile  (≤720 px): off-screen by default; slides in as a 240 px
+ *    drawer when the topnav's hamburger toggles navDrawerOpen.
  *
- *  - Desktop (>720 px): always visible at LEFT_NAV_WIDTH_DESKTOP.
- *    Permanent navigation. Main content padded-left to make room.
- *  - Mobile (≤720 px): off-screen by default (translateX(-100%));
- *    slides in as a full-height drawer when navDrawerOpen flips true
- *    (the TopNav's hamburger toggles it). Main content takes full
- *    viewport width — `--leftnav-width` is set to 0 on compact.
- *
- * On mobile the drawer is always rendered with full labels (not
- * icon-only) so the touch targets are large and comfortable.
+ * Active item: subtle white-frosted tint + 3 px amber inset bar on the
+ * left edge. No emojis — single-color SVG line icons (see ./icons.tsx).
  */
 export const LeftNav = component$(() => {
   const loc = useLocation();
@@ -37,12 +33,10 @@ export const LeftNav = component$(() => {
   const compact = profile.isCompactViewport;
   const drawerOpen = profile.navDrawerOpen;
 
-  // Geometry
   const width = compact ? 240 : LEFT_NAV_WIDTH_DESKTOP;
-  // Compact mode: slide off-screen unless the drawer is open
   const translateX = compact && !drawerOpen ? '-100%' : '0';
   const elevation = compact && drawerOpen
-    ? 'box-shadow: 4px 0 24px rgba(15,23,42,0.18);'
+    ? 'box-shadow: 4px 0 28px rgba(15,23,42,0.18);'
     : '';
 
   return (
@@ -51,13 +45,14 @@ export const LeftNav = component$(() => {
       data-compact={compact ? 'true' : 'false'}
       data-drawer-open={drawerOpen ? 'true' : 'false'}
       aria-label="Primary"
-      style={`position: fixed; top: 56px; left: 0; bottom: 0; width: ${width}px; z-index: 50; background: #ffffff; border-right: 1px solid #e2e8f0; padding: 16px 10px; display: flex; flex-direction: column; gap: 4px; transform: translateX(${translateX}); transition: transform 0.22s ease-out, width 0.18s ease-out; ${elevation}`}
+      style={`position: fixed; top: 56px; left: 0; bottom: 0; width: ${width}px; z-index: 50; background: rgba(255,255,255,0.42); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); border-right: 1px solid rgba(15,23,42,0.06); padding: 14px 10px; display: flex; flex-direction: column; gap: 4px; transform: translateX(${translateX}); transition: transform 0.22s ease-out; ${elevation}`}
     >
       {ITEMS.map((item) => {
         const active =
           item.href === '/'
             ? loc.url.pathname === '/' || loc.url.pathname === ''
             : loc.url.pathname.startsWith(item.href);
+        const Icon = item.Icon;
         return (
           <a
             key={item.href}
@@ -66,17 +61,20 @@ export const LeftNav = component$(() => {
             data-active={active ? 'true' : 'false'}
             title={item.label}
             onClick$={() => { if (compact) profile.navDrawerOpen = false; }}
-            style={`display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 8px; color: ${active ? '#0f172a' : '#475569'}; background: ${active ? 'rgba(245,158,11,0.12)' : 'transparent'}; text-decoration: none; font-size: 14px; font-weight: ${active ? 600 : 500}; transition: background 0.12s; white-space: nowrap; overflow: hidden; ${active ? `box-shadow: inset 3px 0 0 #f59e0b;` : ''}`}
+            style={`position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 8px; color: ${active ? '#0f172a' : '#475569'}; background: ${active ? 'rgba(255,255,255,0.7)' : 'transparent'}; text-decoration: none; font-size: 13.5px; font-weight: ${active ? 600 : 500}; transition: background 0.12s, color 0.12s; white-space: nowrap; overflow: hidden; ${active ? 'box-shadow: inset 3px 0 0 #f59e0b, 0 1px 2px rgba(15,23,42,0.04);' : ''}`}
           >
-            <span style="font-size: 18px; line-height: 1; flex: 0 0 auto;">{item.icon}</span>
+            <span style={`color: ${active ? '#0f172a' : '#94a3b8'}; display: inline-flex; flex: 0 0 auto; transition: color 0.12s;`}>
+              <Icon size={16} />
+            </span>
             <span>{item.label}</span>
           </a>
         );
       })}
-      {/* Footer area in the drawer — could host extra actions later */}
+
       <div style="flex: 1;"></div>
+
       {compact && (
-        <div style="font-size: 10px; color: #cbd5e1; text-align: center; padding: 6px 0; border-top: 1px solid #f1f5f9;">
+        <div style="font-size: 10px; color: #cbd5e1; text-align: center; padding: 6px 0; border-top: 1px solid rgba(15,23,42,0.06); letter-spacing: 0.04em;">
           tap outside to close
         </div>
       )}

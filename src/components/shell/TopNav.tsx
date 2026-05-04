@@ -3,6 +3,13 @@ import { useLocation } from '@builder.io/qwik-city';
 import { ProfileCtx } from '../boggle/context';
 import { Avatar } from './Avatar';
 import { updateDisplayName } from '../boggle/profile/api';
+import {
+  IconClose,
+  IconEdit,
+  IconHamburger,
+  IconLogo,
+  IconUser,
+} from './icons';
 
 export const PAGE_TITLES: Record<string, string> = {
   '/':         'Word Finder',
@@ -10,8 +17,9 @@ export const PAGE_TITLES: Record<string, string> = {
 };
 
 /**
- * Top bar — fixed-position. Logo + current-page title on the left, profile
- * avatar with dropdown menu on the right. Classic dashboard chrome.
+ * Top bar — fixed-position frosted-glass shell. Logo + page title on the
+ * left, profile avatar with dropdown menu on the right. No emoji — all
+ * iconography is inline SVG (see ./icons.tsx).
  */
 export const TopNav = component$(() => {
   const profile = useContext(ProfileCtx);
@@ -29,8 +37,6 @@ export const TopNav = component$(() => {
       }
     };
     window.addEventListener('keydown', onKey);
-    // Defer the click-away listener by a tick so the click that opened the
-    // menu doesn't immediately re-close it.
     const id = setTimeout(() => window.addEventListener('click', onClick), 0);
     cleanup(() => {
       window.removeEventListener('keydown', onKey);
@@ -42,29 +48,13 @@ export const TopNav = component$(() => {
   const title = PAGE_TITLES[loc.url.pathname] ?? '';
   const displayName = profile.profile?.displayName || '';
   const playerId = profile.playerId;
-  // The logo already says "Word Finder", so don't double up on "/" route.
   const showBreadcrumb = title && title !== 'Word Finder';
   const compact = profile.isCompactViewport;
-
-  const renameInline = $(async () => {
-    const next = window.prompt('Display name', displayName)?.trim();
-    if (!next || next === displayName) return;
-    profile.pendingMutation = true;
-    try {
-      const updated = await updateDisplayName(playerId, next);
-      profile.profile = updated;
-    } catch (e) {
-      console.error('updateDisplayName failed', e);
-    } finally {
-      profile.pendingMutation = false;
-      profile.avatarMenuOpen = false;
-    }
-  });
 
   return (
     <header
       data-testid="topnav"
-      style="position: fixed; top: 0; left: 0; right: 0; height: 56px; z-index: 90; background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 0 14px;"
+      style="position: fixed; top: 0; left: 0; right: 0; height: 56px; z-index: 90; background: rgba(255,255,255,0.55); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); border-bottom: 1px solid rgba(15,23,42,0.06); display: flex; align-items: center; justify-content: space-between; padding: 0 14px;"
     >
       <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
         {compact && (
@@ -74,20 +64,22 @@ export const TopNav = component$(() => {
             aria-label={profile.navDrawerOpen ? 'Close navigation' : 'Open navigation'}
             aria-expanded={profile.navDrawerOpen ? 'true' : 'false'}
             onClick$={() => (profile.navDrawerOpen = !profile.navDrawerOpen)}
-            style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; background: transparent; border: 1px solid #e2e8f0; border-radius: 8px; color: #475569; cursor: pointer; flex: 0 0 auto;"
+            style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; background: rgba(255,255,255,0.5); border: 1px solid rgba(15,23,42,0.08); border-radius: 8px; color: #334155; cursor: pointer; flex: 0 0 auto; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);"
           >
-            <span aria-hidden="true" style="font-size: 16px; line-height: 1;">
-              {profile.navDrawerOpen ? '✕' : '☰'}
-            </span>
+            {profile.navDrawerOpen ? <IconClose /> : <IconHamburger />}
           </button>
         )}
         <a
           href="/"
           data-testid="topnav-logo"
-          style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #0f172a; min-width: 0;"
+          style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #0f172a; min-width: 0;"
         >
-          <span aria-hidden="true" style="font-size: 18px; flex: 0 0 auto;">📖</span>
-          <span style="font-weight: 700; font-size: 14px; letter-spacing: 0.02em; white-space: nowrap;">Word Finder</span>
+          <span style="display: inline-flex; align-items: center; color: #1e3a8a; flex: 0 0 auto;">
+            <IconLogo size={20} />
+          </span>
+          <span style="font-weight: 600; font-size: 14px; letter-spacing: -0.005em; white-space: nowrap; color: #0f172a;">
+            Word Finder
+          </span>
           {showBreadcrumb && (
             <>
               <span aria-hidden="true" style="color: #cbd5e1; margin: 0 4px;">/</span>
@@ -119,42 +111,69 @@ export const TopNav = component$(() => {
         )}
 
         {profile.avatarMenuOpen && (
-          <div
-            role="menu"
-            data-testid="avatar-menu"
-            style="position: absolute; top: 44px; right: 0; min-width: 220px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 10px 24px rgba(15,23,42,0.10), 0 2px 4px rgba(15,23,42,0.04); padding: 6px; display: flex; flex-direction: column; gap: 2px; z-index: 100;"
-          >
-            <div style="padding: 10px 10px 6px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #f1f5f9; margin-bottom: 4px;">
-              <Avatar playerId={playerId} displayName={displayName} size={36} />
-              <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
-                <span style="font-size: 13px; font-weight: 600; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                  {displayName || 'Anonymous'}
-                </span>
-                <span style="font-size: 10px; color: #94a3b8; font-family: ui-monospace, monospace;">
-                  {playerId.slice(0, 8)}…
-                </span>
-              </div>
-            </div>
-            <a
-              href="/profile/"
-              data-testid="avatar-menu-profile"
-              onClick$={() => (profile.avatarMenuOpen = false)}
-              style="padding: 8px 10px; border-radius: 6px; text-decoration: none; color: #0f172a; font-size: 13px; display: flex; align-items: center; gap: 8px;"
-            >
-              <span aria-hidden="true">👤</span> View profile
-            </a>
-            <button
-              type="button"
-              data-testid="avatar-menu-rename"
-              onClick$={renameInline}
-              style="padding: 8px 10px; border-radius: 6px; background: transparent; border: 0; color: #0f172a; font-size: 13px; text-align: left; display: flex; align-items: center; gap: 8px; cursor: pointer;"
-            >
-              <span aria-hidden="true">✏️</span> Rename
-            </button>
-          </div>
+          <AvatarMenu />
         )}
       </div>
     </header>
+  );
+});
+
+export const AvatarMenu = component$(() => {
+  const profile = useContext(ProfileCtx);
+  const playerId = profile.playerId;
+  const displayName = profile.profile?.displayName || '';
+
+  const renameInline = $(async () => {
+    const next = window.prompt('Display name', displayName)?.trim();
+    if (!next || next === displayName) return;
+    profile.pendingMutation = true;
+    try {
+      const updated = await updateDisplayName(playerId, next);
+      profile.profile = updated;
+    } catch (e) {
+      console.error('updateDisplayName failed', e);
+    } finally {
+      profile.pendingMutation = false;
+      profile.avatarMenuOpen = false;
+    }
+  });
+
+  return (
+    <div
+      role="menu"
+      data-testid="avatar-menu"
+      style="position: absolute; top: 44px; right: 0; min-width: 240px; background: rgba(255,255,255,0.78); border: 1px solid rgba(15,23,42,0.08); border-radius: 12px; box-shadow: 0 12px 30px rgba(15,23,42,0.10), 0 2px 6px rgba(15,23,42,0.04); padding: 8px; display: flex; flex-direction: column; gap: 2px; z-index: 100; backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%);"
+    >
+      <div style="padding: 10px 10px 8px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(15,23,42,0.06); margin-bottom: 4px;">
+        <Avatar playerId={playerId} displayName={displayName} size={36} />
+        <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+          <span style="font-size: 13px; font-weight: 600; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            {displayName || 'Anonymous'}
+          </span>
+          <span style="font-size: 10px; color: #94a3b8; font-family: ui-monospace, SF Mono, Menlo, monospace;">
+            {playerId.slice(0, 8)}…
+          </span>
+        </div>
+      </div>
+      <a
+        href="/profile/"
+        data-testid="avatar-menu-profile"
+        onClick$={() => (profile.avatarMenuOpen = false)}
+        style="padding: 8px 10px; border-radius: 8px; text-decoration: none; color: #0f172a; font-size: 13px; display: flex; align-items: center; gap: 10px;"
+      >
+        <span style="color: #64748b; display: inline-flex;"><IconUser size={16} /></span>
+        View profile
+      </a>
+      <button
+        type="button"
+        data-testid="avatar-menu-rename"
+        onClick$={renameInline}
+        style="padding: 8px 10px; border-radius: 8px; background: transparent; border: 0; color: #0f172a; font-size: 13px; text-align: left; display: flex; align-items: center; gap: 10px; cursor: pointer;"
+      >
+        <span style="color: #64748b; display: inline-flex;"><IconEdit size={16} /></span>
+        Rename
+      </button>
+    </div>
   );
 });
 

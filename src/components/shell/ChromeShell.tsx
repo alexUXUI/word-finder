@@ -69,7 +69,7 @@ export const ChromeShell = component$(() => {
   const closeDrawer = $(() => { profileState.navDrawerOpen = false; });
 
   return (
-    <div data-testid="chrome-shell" style="min-height: 100vh; background: #fafafa;">
+    <div data-testid="chrome-shell" style="min-height: 100vh;">
       <TopNav />
       <LeftNav />
       {/* Mobile drawer backdrop — only rendered when the compact-viewport
