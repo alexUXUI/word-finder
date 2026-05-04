@@ -56,3 +56,20 @@ smart-mode-*.png
 # Benchmark "latest" pointer; versioned baselines under docs/baselines/ are committed
 docs/.benchmark-baseline.json
 evals/results/
+
+# Wrangler local dev cache (DO state, bundle artifacts)
+.wrangler/
+multiplayer-worker/.wrangler/
+
+# Throwaway visual snapshots from Playwright reviews
+mp-*.png
+resp*.png
+nav*.png
+layout*.png
+aesthetic-*.png
+profile-with-*.png
+stats-*.png
+.playwright-mcp/
+
+# Local scheduled-task lock files
+.claude/scheduled_tasks.lock
