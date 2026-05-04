@@ -248,6 +248,12 @@ export const Controls = component$(() => {
           {
             runs: totalRuns,
             onRunComplete: (r, idx, _all) => {
+              // Reset narration between runs so the banner shows the
+              // CURRENT run only — without this, 10 runs × ~6 lines each
+              // pile up and shove the board offscreen.
+              smart.narration = [];
+              smart.liveTokens = '';
+              smart.searchProgress = undefined;
               smart.lastBatch = [
                 ...(smart.lastBatch ?? []),
                 {
@@ -302,9 +308,10 @@ export const Controls = component$(() => {
         smart.generationStatus = 'complete';
         smart.generationStage = undefined;
         smart.batchProgress = undefined;
-        // Pop the side-panel dashboard open so the player sees the spread.
-        // They can dismiss it; the right-edge "📊 Stats" tab brings it back.
-        smart.dashboardOpen = true;
+        // Don't auto-pop the dashboard — the right-edge "📊 Stats" tab is
+        // always visible after a batch completes; player opens it when
+        // they want to. Auto-opening would cover the freshly-loaded
+        // board the moment they hit Reset.
         worker.mod?.postMessage({
           language: gameState.language,
           board: boardState.chars,

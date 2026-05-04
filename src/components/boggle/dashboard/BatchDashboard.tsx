@@ -211,8 +211,8 @@ export const BatchDashboard = component$(() => {
         data-testid="batch-dashboard"
         data-runs={rows.length}
         data-open={isOpen ? 'true' : 'false'}
-        class="glass-panel"
-        style={`position: fixed; top: 0; right: 0; bottom: 0; width: min(540px, 95vw); z-index: 110; overflow-y: auto; transform: translateX(${isOpen ? '0' : '100%'}); transition: transform 0.22s ease-out;`}
+        class="glass"
+        style={`position: fixed; top: 0; right: 0; bottom: 0; width: min(540px, 95vw); z-index: 110; overflow-y: auto; transform: translateX(${isOpen ? '0' : '100%'}); transition: transform 0.22s ease-out; border-left: 2px solid #dfdfdf; box-shadow: -8px 0 24px rgba(30,58,138,0.08);`}
       >
         <div style="padding: 14px 14px 24px; display: flex; flex-direction: column; gap: 12px;">
           {/* Header */}
