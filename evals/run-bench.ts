@@ -29,6 +29,7 @@ import { makeMockProvider } from '../src/components/boggle/intelligence/local-mo
 import { setProviderForId } from '../src/components/boggle/intelligence/local-model/factory';
 import { SLM_REGISTRY } from '../src/components/boggle/intelligence/local-model/device-tier';
 import { Language } from '../src/components/boggle/models';
+import { logRun, isMlflowProxyReachable } from './mlflow-client';
 
 interface GoalConfig {
   id: string;
@@ -197,6 +198,51 @@ const runOne = async (
     )
   );
   console.log(`[bench] wrote ${path.relative(REPO_ROOT, out)}`);
+
+  // MLflow run for this (pipeline, goal). Each becomes a row in the
+  // word-finder-bench experiment with summary metrics, plus per-board
+  // history so MLflow draws the distribution.
+  if (await isMlflowProxyReachable()) {
+    const pwArr = (boards as { score: { playerRelevantWords: number } }[]).map(
+      (b) => b.score.playerRelevantWords
+    );
+    const fsArr = (boards as { score: { finalScore: number } }[]).map(
+      (b) => b.score.finalScore
+    );
+    const elArr = (boards as { elapsedMs: number }[]).map((b) => b.elapsedMs);
+    const mean = (xs: number[]): number =>
+      xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
+    await logRun({
+      experiment: 'word-finder-bench',
+      runName: `${pipelineId}:${goal.id}`,
+      tags: {
+        'word_finder.kind': 'bench',
+        'word_finder.pipeline': pipelineId,
+        'word_finder.pipelineHash': pipelineHash(pipeline),
+        'word_finder.goal': goal.id,
+        'word_finder.realModel': useReal,
+      },
+      params: {
+        pipeline: pipelineId,
+        goal: goal.id,
+        runs,
+        used_real_model: useReal,
+      },
+      metrics: {
+        'playerRelevantWords.mean': mean(pwArr),
+        'playerRelevantWords.min': Math.min(...pwArr),
+        'playerRelevantWords.max': Math.max(...pwArr),
+        'finalScore.mean': mean(fsArr),
+        'elapsedMs.mean': mean(elArr),
+        'wall_ms_total': Date.now() - t0,
+        'playerRelevantWords.history': pwArr.map((value, step) => ({
+          value,
+          step,
+        })),
+        'elapsedMs.history': elArr.map((value, step) => ({ value, step })),
+      },
+    });
+  }
 };
 
 const main = async (): Promise<void> => {
@@ -240,6 +286,11 @@ const main = async (): Promise<void> => {
     }
   }
   console.log(`[bench] done. Run \`yarn bench:report\` to see the leaderboard.`);
+  if (await isMlflowProxyReachable()) {
+    console.log(
+      `View in MLflow: http://localhost:5000  (experiment: word-finder-bench)`
+    );
+  }
 };
 
 main().catch((e) => {

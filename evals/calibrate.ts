@@ -25,6 +25,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
+import { logRun, isMlflowProxyReachable } from './mlflow-client';
 import { slmJudgeCritic } from '../src/components/boggle/intelligence/roles/critic/slm-judge';
 import { makeMockProvider } from '../src/components/boggle/intelligence/local-model/mock';
 import { NoopTracer } from '../src/components/boggle/generation/trace';
@@ -253,6 +254,38 @@ const main = async (): Promise<void> => {
   console.log(`agreement:  ${agreement.toFixed(3)}  (need ≥ ${thresholds.agreement})`);
   console.log(`binding:    ${binding ? 'YES — judge enters promotion gates' : 'NO — judge non-binding'}`);
   console.log(`\nWrote: ${CALIBRATION_PATH}`);
+
+  // MLflow run — calibration over time becomes a proper trend in the UI.
+  if (await isMlflowProxyReachable()) {
+    await logRun({
+      experiment: 'word-finder-calibration',
+      runName: `calibration:${new Date().toISOString().slice(0, 19)}`,
+      tags: {
+        'word_finder.kind': 'calibration',
+        'word_finder.binding': String(binding),
+      },
+      params: {
+        samples: ratings.length,
+        threshold_samples: thresholds.samples,
+        threshold_spearman: thresholds.spearman,
+        threshold_ece: thresholds.ece,
+        threshold_agreement: thresholds.agreement,
+        used_real_model: process.env.BENCH_USE_REAL_MODEL === '1',
+      },
+      metrics: {
+        spearman: rho,
+        ece: ec,
+        pairwise_agreement: agreement,
+        binding: binding ? 1 : 0,
+      },
+      artifacts: {
+        'calibration.json': JSON.stringify(report, null, 2),
+      },
+    });
+    console.log(
+      `View in MLflow: http://localhost:5000  (experiment: word-finder-calibration)`
+    );
+  }
 };
 
 main().catch((e) => {

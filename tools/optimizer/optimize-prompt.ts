@@ -51,6 +51,7 @@ import { MUTATOR_SYSTEM } from '../../src/components/boggle/intelligence/prompts
 
 import type { Pipeline } from '../../src/components/boggle/intelligence/pipeline/types';
 import { generateVariants, type PromptVariant } from './mutations';
+import { logRun, isMlflowProxyReachable } from '../../evals/mlflow-client';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -164,6 +165,42 @@ const main = async (): Promise<void> => {
   const variants = generateVariants(baseline);
   const goal = loadGoal(goalId);
 
+  // MLflow integration. Each optimizer invocation creates a parent run
+  // tagged "optimizer.<role>.<goal>"; each variant becomes a child run
+  // with the prompt text as an artifact and bench metrics. Browse the
+  // experiment at http://localhost:5000 (start with `mlflow server
+  // --port 5000` + `yarn mlflow.proxy`).
+  const mlflowReachable = await isMlflowProxyReachable();
+  if (mlflowReachable) {
+    console.log(`[optimize] MLflow proxy reachable — logging runs.`);
+  } else {
+    console.log(
+      `[optimize] MLflow proxy not reachable (start with: mlflow server --port 5000 && yarn mlflow.proxy). Continuing without MLflow logging.`
+    );
+  }
+  const parentRunResult = mlflowReachable
+    ? await logRun({
+        experiment: `word-finder-optimizer`,
+        runName: `optimize:${role}:${goalId}:${new Date().toISOString().slice(0, 19)}`,
+        tags: {
+          'word_finder.kind': 'optimizer',
+          'word_finder.role': role,
+          'word_finder.goal': goalId,
+          'word_finder.variants': variants.length,
+        },
+        params: {
+          role,
+          goal: goalId,
+          runs_per_variant: runs,
+          baseline_chars: baseline.length,
+          variants: variants.length,
+          used_real_model: useReal,
+        },
+        status: 'RUNNING',
+      })
+    : { runId: null, ok: false };
+  const parentRunId = parentRunResult.runId;
+
   // Tiny offline dictionary; fetch real engmix.txt only when invoked
   // outside CI. Keeps optimizer runnable without network.
   const dict = await (async (): Promise<readonly string[]> => {
@@ -216,17 +253,56 @@ const main = async (): Promise<void> => {
     }
     const mean = (xs: number[]): number =>
       xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
+    const meanPw = mean(playerWords);
     out.push({
       variant: v,
       runs,
-      meanPlayerWords: mean(playerWords),
+      meanPlayerWords: meanPw,
       minPlayerWords: Math.min(...playerWords),
       maxPlayerWords: Math.max(...playerWords),
       meanFinalScore: mean(finalScores),
       meanElapsedMs: mean(elapsedMs),
       promptLength: v.text.length,
     });
-    console.log(`mean=${mean(playerWords).toFixed(1)}`);
+    console.log(`mean=${meanPw.toFixed(1)}`);
+
+    // Per-variant child run.
+    if (mlflowReachable && parentRunId) {
+      await logRun({
+        experiment: `word-finder-optimizer`,
+        runName: `${v.id}:${v.label}`,
+        parentRunId,
+        tags: {
+          'word_finder.kind': 'optimizer.variant',
+          'word_finder.role': role,
+          'word_finder.variant_id': v.id,
+          'word_finder.variant_label': v.label,
+        },
+        params: {
+          role,
+          goal: goalId,
+          variant_id: v.id,
+          variant_label: v.label,
+          prompt_chars: v.text.length,
+          runs,
+        },
+        metrics: {
+          'playerRelevantWords.mean': meanPw,
+          'playerRelevantWords.min': Math.min(...playerWords),
+          'playerRelevantWords.max': Math.max(...playerWords),
+          'finalScore.mean': mean(finalScores),
+          'elapsedMs.mean': mean(elapsedMs),
+          // Per-board metric history so MLflow draws a step plot.
+          'playerRelevantWords.history': playerWords.map((value, step) => ({
+            value,
+            step,
+          })),
+        },
+        artifacts: {
+          [`${v.id}.txt`]: v.text,
+        },
+      });
+    }
   }
 
   out.sort((a, b) => b.meanPlayerWords - a.meanPlayerWords);
@@ -273,6 +349,40 @@ const main = async (): Promise<void> => {
     )
   );
   console.log(`\nWrote: ${path.relative(REPO_ROOT, out_path)}`);
+
+  // Close out the parent run with summary metrics.
+  if (mlflowReachable && parentRunId) {
+    const baselineRow = out.find((x) => x.variant.id === 'baseline');
+    const winnerRow = out[0];
+    await logRun({
+      experiment: `word-finder-optimizer`,
+      runName: `optimize:${role}:${goalId}:summary`,
+      parentRunId,
+      tags: {
+        'word_finder.kind': 'optimizer.summary',
+        'word_finder.winner_id': winnerRow?.variant.id ?? '',
+      },
+      params: {
+        winner: winnerRow?.variant.id ?? '',
+        beat_baseline:
+          baselineRow && winnerRow
+            ? winnerRow.meanPlayerWords > baselineRow.meanPlayerWords
+            : false,
+      },
+      metrics: {
+        'baseline.meanPlayerWords': baselineRow?.meanPlayerWords ?? 0,
+        'winner.meanPlayerWords': winnerRow?.meanPlayerWords ?? 0,
+        'delta.meanPlayerWords':
+          baselineRow && winnerRow
+            ? winnerRow.meanPlayerWords - baselineRow.meanPlayerWords
+            : 0,
+      },
+    });
+    console.log(
+      `\nView in MLflow: http://localhost:5000  (experiment: word-finder-optimizer)`
+    );
+  }
+
   console.log(
     `\nTo promote a variant: copy its text into prompts/${role}.ts (replace the *_SYSTEM constant), bump *_PROMPT_VERSION, run \`yarn bench\`, validate the win persists across goals before merging.`
   );
