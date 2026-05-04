@@ -19,17 +19,25 @@ export const ReasoningPanel = component$(() => {
 
   const close = $(() => { smart.reasoningOpen = false; });
 
-  // Auto-open whenever a generation starts; auto-stay-open through complete.
+  // Auto-open whenever a generation starts OR the SLM begins downloading
+  // (so the player sees model-load progress in the same place as the
+  // subsequent reasoning steps, instead of a separate floating banner).
   useTask$(({ track }) => {
     const status = track(() => smart.generationStatus);
-    if (status === 'running') smart.reasoningOpen = true;
+    const modelStatus = track(() => smart.modelStatus);
+    if (status === 'running' || modelStatus === 'loading') {
+      smart.reasoningOpen = true;
+    }
   });
 
   const open = !!smart.reasoningOpen;
   const status = smart.generationStatus;
+  const modelStatus = smart.modelStatus;
   const lastBatch = smart.lastBatch ?? [];
   const batch = smart.batchProgress;
   const hasFinal = status === 'complete' && smart.lastExplanation;
+  const isLoadingModel = modelStatus === 'loading';
+  const hasLoadError = !!smart.modelLoadError;
 
   return (
     <aside
@@ -58,8 +66,34 @@ export const ReasoningPanel = component$(() => {
           </div>
         </header>
 
+        {/* Model download progress — first card, only while the SLM is
+            being fetched. Replaces the old floating SmartBanner. */}
+        {isLoadingModel && (
+          <Card title="Loading SLM">
+            <Row label="Status" value="Downloading model…" />
+            <Row label="Progress" value={`${Math.round(smart.modelLoadProgress)}%`} />
+            <ProgressBar value={smart.modelLoadProgress} />
+            {smart.slmTier && (
+              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(15,23,42,0.06); font-size: 11px; color: #64748b; line-height: 1.5;">
+                <div style="color: #0f172a; font-weight: 600; font-size: 12px;">{smart.slmTier.displayName}</div>
+                <div>{smart.slmTier.modelId}</div>
+                <div>~{smart.slmTier.approxSizeMb} MB · {smart.slmTier.reason}</div>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Model load error */}
+        {hasLoadError && (
+          <Card title="Model error">
+            <div style="font-size: 12.5px; color: #991b1b; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.20); padding: 8px 10px; border-radius: 6px;">
+              {smart.modelLoadError}
+            </div>
+          </Card>
+        )}
+
         {/* Idle / no-generation-yet hint */}
-        {status === 'idle' && smart.narration.length === 0 && (
+        {status === 'idle' && !isLoadingModel && !hasLoadError && smart.narration.length === 0 && (
           <Card>
             <EmptyHint />
           </Card>

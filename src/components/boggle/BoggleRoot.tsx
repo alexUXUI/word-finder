@@ -13,7 +13,6 @@ import { useLocation } from '@builder.io/qwik-city';
 import { Controls } from './controls/Controls';
 import { WordsPanel } from './controls/WordsPanel';
 import { BoggleBoard } from './board/Board';
-import { SmartBanner } from './intelligence/SmartBanner';
 import { ReasoningPanel } from './intelligence/ReasoningPanel';
 import { PipelineLab } from './lab/PipelineLab';
 import { BatchDashboard } from './dashboard/BatchDashboard';
@@ -487,7 +486,6 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
       style="display: flex; flex-direction: column; align-items: center; max-width: 720px; margin: 0 auto; padding: 8px 12px 32px;"
     >
       <Controls />
-      <SmartBanner />
       <UserGameStats />
       <BoggleBoard />
       <WordsPanel />
