@@ -9,6 +9,7 @@ import {
   useBrowserVisibleTask$,
 } from '@builder.io/qwik';
 
+import { useLocation } from '@builder.io/qwik-city';
 import { Controls } from './controls/Controls';
 import { WordsPanel } from './controls/WordsPanel';
 import { BoggleBoard } from './board/Board';
@@ -38,6 +39,7 @@ import {
   recordRecentGame,
   readRecentGames,
 } from './multiplayer/storage';
+import { recordRecentPlayer, recordPlayedGame } from './profile/api';
 import BoggleWorker from './worker?worker';
 
 import type {
@@ -64,6 +66,7 @@ export interface BoggleProps {
 
 export const BoogleRoot = component$(({ data }: BoggleProps) => {
   const { board, boardWidth, boardSize, language, minCharLength, minWordsPerBoard, attemptsPerReset } = data;
+  const loc = useLocation();
 
   const dictionaryState = useStore<DictionaryState>({ dictionary: [] });
 
@@ -212,6 +215,21 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
   useContextProvider(BuilderCtx, builderState);
   useContextProvider(MultiplayerCtx, multiplayerState);
 
+  // ─── Panel-opener via URL query. The LeftNav links to /?panel=<x>;
+  // this task watches the query and flips the matching panel open.
+  // Re-runs on URL change (Qwik City's useLocation is reactive), so
+  // clicking the same link with a different panel works too.
+  useTask$(({ track }) => {
+    const panel = track(() => loc.url.searchParams.get('panel'));
+    if (panel === 'multiplayer') {
+      multiplayerState.panelOpen = true;
+    } else if (panel === 'builder') {
+      builderState.open = true;
+    } else if (panel === 'stats') {
+      smartState.dashboardOpen = true;
+    }
+  });
+
   // ─── Multiplayer hydration: load identity + recent games on first paint.
   // Also parse ?game= / ?name= deep-link params and pre-fill the form.
   useBrowserVisibleTask$(() => {
@@ -333,6 +351,37 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
           }
           multiplayerState.lastResults = frame.results;
           appendEvent({ kind: 'ended', text: 'Game ended' });
+          // Record opponents in this player's "recent players" list AND
+          // archive the game itself into played-games. Both fire-and-forget
+          // — failures are non-fatal (no UI surface) since the game is over.
+          const myId = multiplayerState.playerId;
+          const gameLabel = multiplayerState.game?.displayName ?? game;
+          for (const row of frame.results.perPlayer) {
+            if (row.playerId === myId) continue;
+            recordRecentPlayer(myId, row.playerId, {
+              displayName: row.displayName,
+              gameName: gameLabel,
+            }).catch(() => { /* swallow — best-effort */ });
+          }
+          // Played-game archive — one entry per game per player.
+          const me = frame.results.perPlayer.find((p) => p.playerId === myId);
+          const totalUnique = frame.results.perPlayer.reduce(
+            (s, p) => s + p.points, 0,
+          );
+          if (me && multiplayerState.game) {
+            recordPlayedGame(myId, {
+              gameName: game,
+              gameDisplayName: gameLabel,
+              board: multiplayerState.game.board,
+              size: multiplayerState.game.boardSize,
+              myUnique: me.points,
+              totalUnique,
+              playerCount: frame.results.perPlayer.length,
+              won: frame.results.winnerIds.includes(myId),
+              startedAt: multiplayerState.game.startedAt ?? frame.endedAt,
+              endedAt: frame.endedAt,
+            }).catch(() => { /* swallow */ });
+          }
           return;
         }
         if (frame.type === 'error') {
@@ -430,16 +479,20 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
   });
 
   return (
-    <div class="h-[100%] dont-scroll">
+    <div
+      data-testid="play-page"
+      style="display: flex; flex-direction: column; align-items: center; max-width: 720px; margin: 0 auto; padding: 8px 12px 32px;"
+    >
       <Controls />
       <SmartBanner />
-      <BatchDashboard />
       <UserGameStats />
       <BoggleBoard />
       <WordsPanel />
+      <VersionFooter />
+      {/* Right-side slide-in panels — out of normal flow (position: fixed) */}
+      <BatchDashboard />
       <PipelineLab />
       <MultiplayerPanel />
-      <VersionFooter />
     </div>
   );
 });

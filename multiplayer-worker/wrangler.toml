@@ -13,6 +13,10 @@ compatibility_flags = ["nodejs_compat"]
 name = "GAME_ROOM"
 class_name = "GameRoom"
 
+[[durable_objects.bindings]]
+name = "PROFILE"
+class_name = "PlayerProfile"
+
 [[migrations]]
 tag = "multiplayer-v1"
 new_classes = ["GameRoom"]
@@ -20,3 +24,7 @@ new_classes = ["GameRoom"]
 # new default storage backend). Using `new_classes` here for local-dev
 # compatibility with the wrangler@3 pinned for macOS 13.2 (the bundled
 # workerd in wrangler@4 needs macOS 13.5+).
+
+[[migrations]]
+tag = "profile-v1"
+new_classes = ["PlayerProfile"]

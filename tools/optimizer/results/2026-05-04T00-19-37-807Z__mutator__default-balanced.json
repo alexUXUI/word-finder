@@ -1,0 +1,107 @@
+{
+  "role": "mutator",
+  "goal": "default-balanced",
+  "runs": 2,
+  "usedRealModel": false,
+  "baselineLength": 875,
+  "variants": [
+    {
+      "variant": {
+        "id": "m6-minimal",
+        "label": "minimal",
+        "text": "Reply with ONLY a JSON array of objects, exactly K entries:\nDo NOT explain in prose. Output JSON only."
+      },
+      "runs": 2,
+      "meanPlayerWords": 172.5,
+      "minPlayerWords": 138,
+      "maxPlayerWords": 207,
+      "meanFinalScore": 308.31288877513805,
+      "meanElapsedMs": 320.35206500000004,
+      "promptLength": 102
+    },
+    {
+      "variant": {
+        "id": "m1-tighten",
+        "label": "tighter",
+        "text": "You are a Boggle board optimizer. Given a board , its current quality metrics, and a goal, propose K letter-swap operations that are likely to improve the board. A swap moves the letters at two cell positions . Indices must be in [0, size*size). Reply with ONLY a JSON array of objects, exactly K entries:\n[{\"i\": <int>, \"j\": <int>, \"rationale\": \"<short reason>\"}, ...] Heuristics that work:\n- swap rare letters into positions where they have many adjacent vowels - swap duplicates of common letters into less crowded regions to broaden the prefix space\n- prefer swaps that complete or extend reachable suffix patterns given the goal\n- avoid swaps that isolate a vowel Do NOT explain in prose. Output JSON only."
+      },
+      "runs": 2,
+      "meanPlayerWords": 158,
+      "minPlayerWords": 157,
+      "maxPlayerWords": 159,
+      "meanFinalScore": 290.87806323035716,
+      "meanElapsedMs": 384.0690635000001,
+      "promptLength": 710
+    },
+    {
+      "variant": {
+        "id": "m5-with-example",
+        "label": "with example",
+        "text": "You are a Boggle board optimizer. Given a board (flat row-major string), its current quality metrics, and a goal, propose K letter-swap operations that are likely to improve the board.\n\nA swap moves the letters at two cell positions (0-indexed in the flat string). Indices must be in [0, size*size).\n\nReply with ONLY a JSON array of objects, exactly K entries:\n[{\"i\": <int>, \"j\": <int>, \"rationale\": \"<short reason>\"}, ...]\n\nHeuristics that work:\n- swap rare letters (Q, X, Z) into positions where they have many adjacent vowels (Boggle paths need adjacency)\n- swap duplicates of common letters (E, S) into less crowded regions to broaden the prefix space\n- prefer swaps that complete or extend reachable suffix patterns (-ING, -ION, -ATE, -ERS) given the goal\n- avoid swaps that isolate a vowel (Boggle words need vowel adjacency)\n\nDo NOT explain in prose. Output JSON only.\n\nExample output: [{\"i\":3,\"j\":17,\"rationale\":\"swap\"}]"
+      },
+      "runs": 2,
+      "meanPlayerWords": 146,
+      "minPlayerWords": 114,
+      "maxPlayerWords": 178,
+      "meanFinalScore": 274.056902926733,
+      "meanElapsedMs": 392.596939,
+      "promptLength": 928
+    },
+    {
+      "variant": {
+        "id": "m4-imperative",
+        "label": "imperative",
+        "text": "Given a board (flat row-major string), its current quality metrics, and a goal, propose K letter-swap operations that are likely to improve the board.\n\nA swap moves the letters at two cell positions (0-indexed in the flat string). Indices must be in [0, size*size).\n\nReply with ONLY a JSON array of objects, exactly K entries:\n[{\"i\": <int>, \"j\": <int>, \"rationale\": \"<short reason>\"}, ...]\n\nHeuristics that work:\n- swap rare letters (Q, X, Z) into positions where they have many adjacent vowels (Boggle paths need adjacency)\n- swap duplicates of common letters (E, S) into less crowded regions to broaden the prefix space\n- prefer swaps that complete or extend reachable suffix patterns (-ING, -ION, -ATE, -ERS) given the goal\n- avoid swaps that isolate a vowel (Boggle words need vowel adjacency)\n\nDo NOT explain in prose. Output JSON only."
+      },
+      "runs": 2,
+      "meanPlayerWords": 141.5,
+      "minPlayerWords": 129,
+      "maxPlayerWords": 154,
+      "meanFinalScore": 266.15211598792416,
+      "meanElapsedMs": 225.77507749999995,
+      "promptLength": 841
+    },
+    {
+      "variant": {
+        "id": "baseline",
+        "label": "baseline",
+        "text": "You are a Boggle board optimizer. Given a board (flat row-major string), its current quality metrics, and a goal, propose K letter-swap operations that are likely to improve the board.\n\nA swap moves the letters at two cell positions (0-indexed in the flat string). Indices must be in [0, size*size).\n\nReply with ONLY a JSON array of objects, exactly K entries:\n[{\"i\": <int>, \"j\": <int>, \"rationale\": \"<short reason>\"}, ...]\n\nHeuristics that work:\n- swap rare letters (Q, X, Z) into positions where they have many adjacent vowels (Boggle paths need adjacency)\n- swap duplicates of common letters (E, S) into less crowded regions to broaden the prefix space\n- prefer swaps that complete or extend reachable suffix patterns (-ING, -ION, -ATE, -ERS) given the goal\n- avoid swaps that isolate a vowel (Boggle words need vowel adjacency)\n\nDo NOT explain in prose. Output JSON only."
+      },
+      "runs": 2,
+      "meanPlayerWords": 134.5,
+      "minPlayerWords": 116,
+      "maxPlayerWords": 153,
+      "meanFinalScore": 259.2063914728104,
+      "meanElapsedMs": 356.0643085,
+      "promptLength": 875
+    },
+    {
+      "variant": {
+        "id": "m3-no-heuristics",
+        "label": "no heuristics",
+        "text": "You are a Boggle board optimizer. Given a board (flat row-major string), its current quality metrics, and a goal, propose K letter-swap operations that are likely to improve the board.\n\nA swap moves the letters at two cell positions (0-indexed in the flat string). Indices must be in [0, size*size).\n\nReply with ONLY a JSON array of objects, exactly K entries:\n[{\"i\": <int>, \"j\": <int>, \"rationale\": \"<short reason>\"}, ...]\n\n\n\nDo NOT explain in prose. Output JSON only."
+      },
+      "runs": 2,
+      "meanPlayerWords": 128,
+      "minPlayerWords": 123,
+      "maxPlayerWords": 133,
+      "meanFinalScore": 253.79415082905206,
+      "meanElapsedMs": 261.6152505,
+      "promptLength": 469
+    },
+    {
+      "variant": {
+        "id": "m2-strict",
+        "label": "all-caps directive",
+        "text": "You are a Boggle board optimizer. Given a board (flat row-major string), its current quality metrics, and a goal, propose K letter-swap operations that are likely to improve the board.\n\nA swap moves the letters at two cell positions (0-indexed in the flat string). Indices must be in [0, size*size).\n\nOUTPUT ONLY a JSON array of objects, exactly K entries:. NO OTHER TEXT.\n[{\"i\": <int>, \"j\": <int>, \"rationale\": \"<short reason>\"}, ...]\n\nHeuristics that work:\n- swap rare letters (Q, X, Z) into positions where they have many adjacent vowels (Boggle paths need adjacency)\n- swap duplicates of common letters (E, S) into less crowded regions to broaden the prefix space\n- prefer swaps that complete or extend reachable suffix patterns (-ING, -ION, -ATE, -ERS) given the goal\n- avoid swaps that isolate a vowel (Boggle words need vowel adjacency)\n\nDo NOT explain in prose. Output JSON only."
+      },
+      "runs": 2,
+      "meanPlayerWords": 99.5,
+      "minPlayerWords": 85,
+      "maxPlayerWords": 114,
+      "meanFinalScore": 228.51154624025656,
+      "meanElapsedMs": 291.7142915000002,
+      "promptLength": 887
+    }
+  ]
+}

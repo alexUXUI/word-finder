@@ -12,7 +12,7 @@ export const WordsPanel = component$(() => {
   });
 
   return (
-    <div class="flex justify-center absolute bottom-0 w-full h-[60px]">
+    <div class="flex justify-center w-full py-4 mt-4">
       <WordsList
         words={answersState.foundWords}
         variant={'foundWords'}

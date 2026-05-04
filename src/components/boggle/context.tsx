@@ -10,6 +10,7 @@ import type {
 import type { BuilderState } from './builder/types';
 import type { MultiplayerClient, ConnectionStatus } from './multiplayer/client';
 import type { GameState as MpGameState, ResultsPayload } from './multiplayer/protocol';
+import type { PlayerProfileState } from './profile/types';
 
 export type { BuilderState };
 
@@ -86,6 +87,10 @@ export interface SmartState {
   >;
   /** Pending board override — main thread sets this to swap in an orchestrator board after generation. */
   pendingBoardOverride?: Signal<string | null>;
+  /** Cross-chart linking on the BatchDashboard. Index is BatchRunRow.idx
+   *  (the original run number, not the sorted-table position). */
+  hoveredRunIdx?: number | null;
+  selectedRunIdx?: number | null;
 }
 
 export const SmartCtx = createContext<SmartState>('smart-context');
@@ -144,6 +149,33 @@ export interface MultiplayerState {
 }
 
 export const MultiplayerCtx = createContext<MultiplayerState>('multiplayer-context');
+
+// ─────────────────────────── Profile ───────────────────────────
+
+export type ProfileLoadStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+export interface ProfileState {
+  /** Persistent UUID — same source as MultiplayerState.playerId. Empty until hydrated. */
+  playerId: string;
+  /** Authoritative profile snapshot fetched from the PlayerProfile DO. */
+  profile: PlayerProfileState | null;
+  loadStatus: ProfileLoadStatus;
+  loadError: string | null;
+  /** True while a mutation (e.g. add-favorite) is in flight; UI can show a small spinner. */
+  pendingMutation: boolean;
+  /** True when the user has the avatar dropdown open in the top nav. */
+  avatarMenuOpen: boolean;
+  /** True when the LeftNav is open as a drawer overlay on mobile/compact
+   *  viewports. Always treated as "open" on desktop where the nav is
+   *  permanently visible. */
+  navDrawerOpen: boolean;
+  /** Mirrors the `(max-width: 720px)` media query — set by the chrome on
+   *  resize, read by TopNav (to show the hamburger) and LeftNav (to
+   *  switch between drawer and persistent layouts). */
+  isCompactViewport: boolean;
+}
+
+export const ProfileCtx = createContext<ProfileState>('profile-context');
 
 /**
  * Per-run row in the multi-run dashboard. Serializable subset of

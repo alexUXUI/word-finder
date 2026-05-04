@@ -1,8 +1,9 @@
-import { $, component$, useContext, useSignal } from '@builder.io/qwik';
+import { $, component$, useContext, useSignal, useTask$ } from '@builder.io/qwik';
 import {
   AnswersCtx,
   BoardCtx,
   GameCtx,
+  ProfileCtx,
   SmartCtx,
   WorkerCtx,
 } from '../context';
@@ -12,6 +13,8 @@ import {
   persistRating,
   exportRatingsToFile,
 } from '../calibration/storage';
+import { addFavoriteBoard } from '../profile/api';
+import { IconClose, IconStar } from '../../shell/icons';
 
 /**
  * Multi-run dashboard. Slides in from the right edge as a frosted-glass
@@ -58,6 +61,7 @@ export const BatchDashboard = component$(() => {
   const board = useContext(BoardCtx);
   const answers = useContext(AnswersCtx);
   const worker = useContext(WorkerCtx);
+  const profile = useContext(ProfileCtx);
 
   const sort = useSignal<SortState>({ key: 'finalScore', dir: 'desc' });
   const orderByRun = useSignal<boolean>(false);
@@ -65,11 +69,31 @@ export const BatchDashboard = component$(() => {
     typeof window !== 'undefined' ? loadRatings().length : 0
   );
 
-  const open = $(() => {
-    smart.dashboardOpen = true;
-  });
   const close = $(() => {
     smart.dashboardOpen = false;
+  });
+
+  // ─── Cross-chart linking ────────────────────────────────────────────
+  // hoveredRunIdx is transient; selectedRunIdx persists until reclicked
+  // or ESC. Both are stored on SmartCtx so the bar / scatter / table all
+  // read from the same source.
+  const setHover = $((idx: number | null) => { smart.hoveredRunIdx = idx; });
+  const toggleSelect = $((idx: number) => {
+    smart.selectedRunIdx = smart.selectedRunIdx === idx ? null : idx;
+  });
+
+  // ESC clears selection while panel is open.
+  useTask$(({ track, cleanup }) => {
+    const isPanelOpen = track(() => smart.dashboardOpen);
+    if (!isPanelOpen || typeof window === 'undefined') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        smart.selectedRunIdx = null;
+        smart.hoveredRunIdx = null;
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    cleanup(() => window.removeEventListener('keydown', onKey));
   });
 
   const setSort = $((key: SortKey) => {
@@ -92,7 +116,7 @@ export const BatchDashboard = component$(() => {
     });
   });
 
-  const rateRow = $((row: BatchRunRow, rating: number) => {
+  const rateRow = $(async (row: BatchRunRow, rating: number) => {
     persistRating({
       pipelineId: row.pipelineId,
       board: row.board,
@@ -101,13 +125,34 @@ export const BatchDashboard = component$(() => {
       capturedAt: new Date().toISOString(),
     });
     ratingsCount.value = loadRatings().length;
+    // 👍 also persists the board to the player's favorites — the calibration
+    // signal is for the SLM critic, but the user-facing intent of liking a
+    // board is "save it". Idempotent on (board, source).
+    if (rating === 1 && profile.playerId) {
+      profile.pendingMutation = true;
+      try {
+        const res = await addFavoriteBoard(profile.playerId, {
+          board: row.board,
+          size: board.boardSize,
+          score: row.playerRelevantWords,
+          pipelineId: row.pipelineId,
+          source: 'batch',
+        });
+        if (profile.profile && !res.alreadyExists) {
+          profile.profile.favoriteBoards = [res.board, ...profile.profile.favoriteBoards];
+        }
+      } catch (e) {
+        console.error('addFavoriteBoard failed', e);
+      } finally {
+        profile.pendingMutation = false;
+      }
+    }
   });
 
   const exportRatings = $(() => exportRatingsToFile());
 
   const rows = smart.lastBatch ?? [];
   const isOpen = !!smart.dashboardOpen;
-  const hasData = rows.length > 0 || smart.batchProgress;
 
   // ── stats ───────────────────────────────────────────────────────────
   const pwVals = rows.map((r) => r.playerRelevantWords);
@@ -192,45 +237,52 @@ export const BatchDashboard = component$(() => {
 
   return (
     <>
-      {/* Right-edge tab — visible whenever there's data, even when panel closed */}
-      {hasData && !isOpen && (
-        <button
-          type="button"
-          data-testid="batch-dashboard-toggle"
-          onClick$={open}
-          class="glass-tab"
-          style="top: 36%;"
-          aria-label="Open batch dashboard"
-        >
-          📊 Stats
-        </button>
-      )}
+      {/* Right-edge tab removed — Stats auto-opens on batch completion;
+          there's no LeftNav entry yet because the panel only has data
+          after a Smart Mode reset. */}
 
       {/* Slide-in panel */}
       <aside
         data-testid="batch-dashboard"
         data-runs={rows.length}
         data-open={isOpen ? 'true' : 'false'}
-        class="glass"
-        style={`position: fixed; top: 0; right: 0; bottom: 0; width: min(540px, 95vw); z-index: 110; overflow-y: auto; transform: translateX(${isOpen ? '0' : '100%'}); transition: transform 0.22s ease-out; border-left: 2px solid #dfdfdf; box-shadow: -8px 0 24px rgba(30,58,138,0.08);`}
+        style={`position: fixed; top: 56px; right: 0; bottom: 0; width: min(540px, 95vw); z-index: 60; overflow-y: auto; background: rgba(255,255,255,0.62); backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%); border-left: 1px solid rgba(15,23,42,0.06); box-shadow: -8px 0 24px rgba(15,23,42,0.06); transform: translateX(${isOpen ? '0' : '100%'}); transition: transform 0.22s ease-out;`}
       >
         <div style="padding: 14px 14px 24px; display: flex; flex-direction: column; gap: 12px;">
           {/* Header */}
           <header style="display: flex; align-items: center; justify-content: space-between;">
-            <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: #1e3a8a; letter-spacing: 0.01em;">
-              📊 Batch Dashboard
+            <h2 style="margin: 0; font-size: 15px; font-weight: 600; color: #0f172a; letter-spacing: -0.005em; display: flex; align-items: center; gap: 8px;">
+              <span style="color: #f59e0b; display: inline-flex;"><IconStar size={16} /></span>
+              Batch Dashboard
             </h2>
             <button
               type="button"
               data-testid="batch-dashboard-close"
               onClick$={close}
-              class="glass-btn-icon"
               aria-label="Close panel"
-              style="font-size: 18px;"
+              style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; background: transparent; border: 0; color: #64748b; cursor: pointer; border-radius: 6px;"
             >
-              ×
+              <IconClose size={16} />
             </button>
           </header>
+
+          {/* Empty state — when opened via the LeftNav before any batch
+              has run, give the user a hint instead of a blank panel. */}
+          {rows.length === 0 && !smart.batchProgress && (
+            <div
+              data-testid="batch-dashboard-empty"
+              style="padding: 36px 24px; text-align: center; background: rgba(255,255,255,0.55); backdrop-filter: blur(12px) saturate(140%); -webkit-backdrop-filter: blur(12px) saturate(140%); border: 1px dashed rgba(15,23,42,0.12); border-radius: 12px; color: #64748b;"
+            >
+              <div style="display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 999px; background: rgba(245,158,11,0.10); color: #f59e0b; margin-bottom: 12px;">
+                <IconStar size={22} />
+              </div>
+              <div style="font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 4px;">No batch yet</div>
+              <div style="font-size: 13px;">
+                Run a Smart Mode reset from Controls to populate the dashboard.<br />
+                Bar chart, Pareto plot, and per-run table will appear here.
+              </div>
+            </div>
+          )}
 
           {/* Stats strip */}
           {rows.length > 0 && (
@@ -354,31 +406,50 @@ export const BatchDashboard = component$(() => {
                 const y = yToPx(r.playerRelevantWords);
                 const h = PAD_T + innerH - y;
                 const isBest = r.idx === bestIdx;
-                const fill = isBest
+                const isHovered = smart.hoveredRunIdx === r.idx;
+                const isSelected = smart.selectedRunIdx === r.idx;
+                const isAccent = isHovered || isSelected;
+                // Single accent palette: amber for hover/select/best, slate for the rest.
+                // Below-floor runs get a slightly lighter slate so they recede.
+                const fill = isAccent
                   ? '#f59e0b'
-                  : r.playerRelevantWords >= game.minWordsPerBoard
-                    ? '#3b82f6'
-                    : '#94a3b8';
+                  : isBest
+                    ? '#fbbf24'
+                    : r.playerRelevantWords >= game.minWordsPerBoard
+                      ? '#94a3b8'
+                      : '#cbd5e1';
+                const opacity = (smart.selectedRunIdx != null && !isSelected) ? 0.45 : 1;
                 return (
-                  <g key={`bar-${r.idx}`}>
+                  <g
+                    key={`bar-${r.idx}`}
+                    style="cursor: pointer;"
+                    onMouseEnter$={() => setHover(r.idx)}
+                    onMouseLeave$={() => setHover(null)}
+                    onClick$={() => toggleSelect(r.idx)}
+                  >
                     <rect
                       data-testid="batch-chart-bar"
                       data-run-idx={r.idx}
+                      data-selected={isSelected ? 'true' : 'false'}
+                      data-hovered={isHovered ? 'true' : 'false'}
                       x={x}
                       y={y}
                       width={barW * 0.8}
                       height={Math.max(0, h)}
                       fill={fill}
                       rx={2}
+                      opacity={opacity}
+                      style="transition: fill 0.15s ease-out, opacity 0.15s;"
                     />
-                    {barRows.length <= 25 && (
+                    {(barRows.length <= 25 || isAccent) && (
                       <text
                         x={x + barW * 0.4}
                         y={y - 4}
                         font-size={9}
-                        fill={isBest ? '#92400e' : '#475569'}
+                        fill={isAccent ? '#92400e' : '#64748b'}
                         text-anchor="middle"
-                        font-weight={isBest ? 700 : 400}
+                        font-weight={isAccent || isBest ? 700 : 400}
+                        style="pointer-events: none; transition: fill 0.15s;"
                       >
                         {r.playerRelevantWords}
                       </text>
@@ -434,17 +505,35 @@ export const BatchDashboard = component$(() => {
               {rows.map((r, i) => {
                 const isFrontier = frontierIdx.has(i);
                 const isBest = i === bestIdx;
+                const isHovered = smart.hoveredRunIdx === r.idx;
+                const isSelected = smart.selectedRunIdx === r.idx;
+                const isAccent = isHovered || isSelected;
+                const radius = isAccent ? 7 : isBest ? 6 : 4;
+                const fill = isAccent
+                  ? '#f59e0b'
+                  : isBest
+                    ? '#fbbf24'
+                    : isFrontier
+                      ? '#16a34a'
+                      : '#cbd5e1';
+                const opacity = (smart.selectedRunIdx != null && !isSelected) ? 0.45 : 1;
                 return (
                   <circle
                     key={`pt-${r.idx}`}
                     data-testid="batch-chart-point"
                     data-run-idx={r.idx}
+                    data-selected={isSelected ? 'true' : 'false'}
                     cx={xToPx(r.elapsedMs)}
                     cy={yToPx2(r.playerRelevantWords)}
-                    r={isBest ? 6 : 4}
-                    fill={isBest ? '#f59e0b' : isFrontier ? '#16a34a' : '#3b82f6'}
-                    stroke={isBest ? '#92400e' : 'white'}
-                    stroke-width={1.5}
+                    r={radius}
+                    fill={fill}
+                    stroke={isAccent ? '#92400e' : '#fff'}
+                    stroke-width={isAccent ? 2 : 1.25}
+                    opacity={opacity}
+                    style="cursor: pointer; transition: r 0.15s, fill 0.15s, opacity 0.15s;"
+                    onMouseEnter$={() => setHover(r.idx)}
+                    onMouseLeave$={() => setHover(null)}
+                    onClick$={() => toggleSelect(r.idx)}
                   />
                 );
               })}
@@ -490,12 +579,28 @@ export const BatchDashboard = component$(() => {
                 <tbody>
                   {sortedRows.map((r) => {
                     const isBest = r.idx === bestIdx;
+                    const isHovered = smart.hoveredRunIdx === r.idx;
+                    const isSelected = smart.selectedRunIdx === r.idx;
+                    const alreadyFav = !!profile.profile?.favoriteBoards.some(
+                      (f) => f.board === r.board && f.source === 'batch'
+                    );
+                    const rowBg = isSelected
+                      ? 'rgba(245,158,11,0.18)'
+                      : isHovered
+                        ? 'rgba(245,158,11,0.08)'
+                        : '';
                     return (
                       <tr
                         key={r.idx}
                         data-testid="batch-table-row"
                         data-run-idx={r.idx}
                         data-is-best={isBest ? 'true' : 'false'}
+                        data-selected={isSelected ? 'true' : 'false'}
+                        data-hovered={isHovered ? 'true' : 'false'}
+                        onMouseEnter$={() => setHover(r.idx)}
+                        onMouseLeave$={() => setHover(null)}
+                        onClick$={() => toggleSelect(r.idx)}
+                        style={`cursor: pointer; ${rowBg ? `background: ${rowBg} !important;` : ''} transition: background 0.15s ease-out;`}
                       >
                         <td>{r.idx + 1}</td>
                         <td style="font-weight: 600;">{r.playerRelevantWords}</td>
@@ -514,7 +619,7 @@ export const BatchDashboard = component$(() => {
                           <button
                             type="button"
                             data-testid="batch-table-load"
-                            onClick$={() => loadIntoGame(r)}
+                            onClick$={(e) => { e.stopPropagation(); loadIntoGame(r); }}
                             class="glass-btn-icon"
                             title="Load this board into the game"
                           >
@@ -523,16 +628,18 @@ export const BatchDashboard = component$(() => {
                           <button
                             type="button"
                             data-testid="batch-table-thumb-up"
-                            onClick$={() => rateRow(r, 1)}
+                            data-favorited={alreadyFav ? 'true' : 'false'}
+                            onClick$={(e) => { e.stopPropagation(); rateRow(r, 1); }}
                             class="glass-btn-icon"
-                            title="Rate this board good (calibrates the SLM judge)"
+                            title={alreadyFav ? 'Already saved to your favorites' : 'Save this board to your profile + rate it good'}
+                            style={alreadyFav ? 'background: rgba(245,158,11,0.18); border-color: #f59e0b; color: #92400e;' : ''}
                           >
-                            👍
+                            {alreadyFav ? '⭐' : '👍'}
                           </button>
                           <button
                             type="button"
                             data-testid="batch-table-thumb-down"
-                            onClick$={() => rateRow(r, 0)}
+                            onClick$={(e) => { e.stopPropagation(); rateRow(r, 0); }}
                             class="glass-btn-icon"
                             title="Rate this board poor"
                           >

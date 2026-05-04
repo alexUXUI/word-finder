@@ -469,7 +469,7 @@ export const Controls = component$(() => {
         <form
           id="controls"
           data-testid="controls-panel"
-          class="glass border-b-2 border-[#dfdfdf] fixed z-50 w-full m-auto px-2 flex justify-center"
+          class="glass border-b border-[rgba(15,23,42,0.06)] w-full m-auto px-2 flex justify-center"
         >
           <fieldset class="w-full p-2 rounded-md border-blue-900 flex flex-wrap justify-evenly max-w-[420px]">
             <div class="flex flex-col my-[10px]">

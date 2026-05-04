@@ -16,6 +16,7 @@
     "src/**/*.ts",
     "../src/components/boggle/multiplayer/protocol.ts",
     "../src/components/boggle/multiplayer/path-validation.ts",
-    "../src/components/boggle/multiplayer/scoring.ts"
+    "../src/components/boggle/multiplayer/scoring.ts",
+    "../src/components/boggle/profile/types.ts"
   ]
 }

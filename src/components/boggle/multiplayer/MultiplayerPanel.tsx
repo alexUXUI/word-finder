@@ -4,6 +4,7 @@ import { JoinForm } from './JoinForm';
 import { PlayerList } from './PlayerList';
 import { RecentEvents } from './RecentEvents';
 import { EndGameResults } from './EndGameResults';
+import { IconBolt, IconClose } from '../../shell/icons';
 
 /**
  * Root multiplayer panel: right-edge tab + slide-in aside following the
@@ -26,7 +27,6 @@ export const MultiplayerPanel = component$(() => {
     else c.send({ type: 'ready', ready: frame === 'ready-on' });
   });
 
-  const open = $(() => { mp.panelOpen = true; });
   const close = $(() => { mp.panelOpen = false; });
 
   const game = mp.game;
@@ -40,30 +40,20 @@ export const MultiplayerPanel = component$(() => {
 
   return (
     <>
-      {!mp.panelOpen && (
-        <button
-          type="button"
-          data-testid="multiplayer-toggle"
-          onClick$={open}
-          class="glass-tab"
-          style="top: 16%;"
-          aria-label="Open multiplayer panel"
-        >
-          🎮 Multiplayer
-        </button>
-      )}
-
+      {/* Right-edge tab removed — panel is opened via the LeftNav's
+          "Multiplayer" link (which sets the URL ?panel=multiplayer query
+          that BoggleRoot watches). */}
       <aside
         data-testid="multiplayer-panel"
         data-state={lifecycleAttr}
         data-open={mp.panelOpen ? 'true' : 'false'}
-        class="glass"
-        style={`position: fixed; top: 0; right: 0; bottom: 0; width: min(380px, 95vw); z-index: 110; overflow-y: auto; transform: translateX(${mp.panelOpen ? '0' : '100%'}); transition: transform 0.22s ease-out; border-left: 2px solid #dfdfdf; box-shadow: -8px 0 24px rgba(30,58,138,0.08);`}
+        style={`position: fixed; top: 56px; right: 0; bottom: 0; width: min(380px, 95vw); z-index: 60; overflow-y: auto; background: rgba(255,255,255,0.62); backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%); border-left: 1px solid rgba(15,23,42,0.06); box-shadow: -8px 0 24px rgba(15,23,42,0.06); transform: translateX(${mp.panelOpen ? '0' : '100%'}); transition: transform 0.22s ease-out;`}
       >
         <div style="padding: 14px 14px 24px; display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
           <header style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-            <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: #1e3a8a; letter-spacing: 0.01em;">
-              🎮 {game?.displayName ?? 'Multiplayer'}
+            <h2 style="margin: 0; font-size: 15px; font-weight: 600; color: #0f172a; letter-spacing: -0.005em; display: flex; align-items: center; gap: 8px;">
+              <span style="color: #f59e0b; display: inline-flex;"><IconBolt size={16} /></span>
+              {game?.displayName ?? 'Multiplayer'}
             </h2>
             <div style="display: flex; align-items: center; gap: 6px;">
               <ConnectionBadge />
@@ -71,11 +61,10 @@ export const MultiplayerPanel = component$(() => {
                 type="button"
                 data-testid="mp-close"
                 onClick$={close}
-                class="glass-btn-icon"
                 aria-label="Close panel"
-                style="font-size: 18px;"
+                style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; background: transparent; border: 0; color: #64748b; cursor: pointer; border-radius: 6px;"
               >
-                ×
+                <IconClose size={16} />
               </button>
             </div>
           </header>

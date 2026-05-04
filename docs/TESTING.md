@@ -2,10 +2,12 @@
 
 Two layers of tests live in `tests/`:
 
-| Layer | Runner | Where | What it pins |
-| --- | --- | --- | --- |
-| **Unit** | Vitest | `tests/unit/` | Pure game logic — `solve()`, `updatePath()`, `randomBoard()`, `convertStringToMatrix()`, `getNeighbors()`, the trie. Fast, no browser. |
-| **End-to-end** | Playwright | `tests/e2e/` | Customer-facing behavior in a real browser, plus visual regression baselines. |
+
+| Layer          | Runner     | Where         | What it pins                                                                                                                           |
+| -------------- | ---------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **Unit**       | Vitest     | `tests/unit/` | Pure game logic — `solve()`, `updatePath()`, `randomBoard()`, `convertStringToMatrix()`, `getNeighbors()`, the trie. Fast, no browser. |
+| **End-to-end** | Playwright | `tests/e2e/`  | Customer-facing behavior in a real browser, plus visual regression baselines.                                                          |
+
 
 Run both:
 
@@ -30,12 +32,14 @@ yarn playwright install      # downloads Playwright browser binaries
 
 Behavioral contracts for the game's algorithms. Tests are intentionally written against the **spec** (Boggle rules) rather than the implementation, so they survive refactors of how the algorithms are structured. The current pinning:
 
-| Spec | Verifies |
-| --- | --- |
-| `solve.test.ts` | Given a fixed dictionary and board, `solve()` returns exactly the dictionary words formable as 8-connected, no-cell-reuse paths. Cell reuse is rejected, diagonals work, results are sorted and deduplicated, no row-wrap. Also covers `convertStringToMatrix()` and `getNeighbors()`. |
-| `path.test.ts` | `updatePath()` builds a path one cell at a time: starts on first click, extends through any of the 8 neighbors, ignores non-neighbors, does not wrap at row edges, truncates back to (excluding) a re-clicked cell. Includes corner/interior coverage. |
-| `random-board.test.ts` | `randomBoard(language, size)` always returns size² letters drawn from the language's pool (English / Russian); falls back to English for unknown languages; produces variability across calls. Also pins `calculateCellWidth` monotonicity. |
-| `trie.test.ts` | The Trie ADT — `add`, `containsWord`, `containsPrefix`, prefix-only matches, shared-prefix words. |
+
+| Spec                   | Verifies                                                                                                                                                                                                                                                                               |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `solve.test.ts`        | Given a fixed dictionary and board, `solve()` returns exactly the dictionary words formable as 8-connected, no-cell-reuse paths. Cell reuse is rejected, diagonals work, results are sorted and deduplicated, no row-wrap. Also covers `convertStringToMatrix()` and `getNeighbors()`. |
+| `path.test.ts`         | `updatePath()` builds a path one cell at a time: starts on first click, extends through any of the 8 neighbors, ignores non-neighbors, does not wrap at row edges, truncates back to (excluding) a re-clicked cell. Includes corner/interior coverage.                                 |
+| `random-board.test.ts` | `randomBoard(language, size)` always returns size² letters drawn from the language's pool (English / Russian); falls back to English for unknown languages; produces variability across calls. Also pins `calculateCellWidth` monotonicity.                                            |
+| `trie.test.ts`         | The Trie ADT — `add`, `containsWord`, `containsPrefix`, prefix-only matches, shared-prefix words.                                                                                                                                                                                      |
+
 
 ### Why these tests are independent of UI
 
@@ -61,21 +65,23 @@ The solver uses a module-level `trie` instance. Each `solve()` call mutates it. 
 
 Customer-facing behavior in a real browser, against the running dev server on port 5173.
 
-| Spec | Verifies |
-| --- | --- |
-| `board-rendering.spec.ts` | 5×5 default, `?board=`/`?size=` URL overrides, answers count populates after solver runs. |
-| `selection.spec.ts` | Click/drag selects cells, adjacency rule, Escape/Backspace/click-outside clears, click-on-selected truncates. |
-| `controls.spec.ts` | Controls panel toggle + Escape, Word Size filter, Customize replaces letters and worker recomputes, Board Size resizes + recomputes, Reset Board re-rolls + recomputes. |
-| `reset.spec.ts` | Reset Board re-rolls letters. |
-| `found-word.spec.ts` | "CAT" → green flash → committed to foundWords, sub-min-length ignored, double-find ignored, non-dict path never commits, level increments 1→2→3 as words are found. |
-| `word-lists.spec.ts` | Found Words "No data" placeholder, Answers list count matches `answers-count`, Escape closes open panel. |
-| `visual.spec.ts` | Pixel-diff baselines for: initial page, controls open, mid-path highlight, answers panel open. |
+
+| Spec                      | Verifies                                                                                                                                                                |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `board-rendering.spec.ts` | 5×5 default, `?board=`/`?size=` URL overrides, answers count populates after solver runs.                                                                               |
+| `selection.spec.ts`       | Click/drag selects cells, adjacency rule, Escape/Backspace/click-outside clears, click-on-selected truncates.                                                           |
+| `controls.spec.ts`        | Controls panel toggle + Escape, Word Size filter, Customize replaces letters and worker recomputes, Board Size resizes + recomputes, Reset Board re-rolls + recomputes. |
+| `reset.spec.ts`           | Reset Board re-rolls letters.                                                                                                                                           |
+| `found-word.spec.ts`      | "CAT" → green flash → committed to foundWords, sub-min-length ignored, double-find ignored, non-dict path never commits, level increments 1→2→3 as words are found.     |
+| `word-lists.spec.ts`      | Found Words "No data" placeholder, Answers list count matches `answers-count`, Escape closes open panel.                                                                |
+| `visual.spec.ts`          | Pixel-diff baselines for: initial page, controls open, mid-path highlight, answers panel open.                                                                          |
+
 
 The Playwright config (`playwright.config.ts`) starts `yarn start` automatically if nothing is on `:5173` and reuses any server already running there. In practice: keep `yarn dev` running in another tab while iterating.
 
 ### Selectors
 
-All e2e tests pull from `data-testid` hooks — never CSS classes, never text content (except for the `Word Finder` title check). Full hook reference is in [`FEATURES.md`](./FEATURES.md). The most useful ones:
+All e2e tests pull from `data-testid` hooks — never CSS classes, never text content (except for the `Word Finder` title check). Full hook reference is in `[FEATURES.md](./FEATURES.md)`. The most useful ones:
 
 - `[data-testid="board"]` carries `data-selected-path` (current path as a string), `data-board-size`, `data-is-word-found`.
 - `[data-testid="cell-{i}"]` carries `data-cell-char`, `data-cell-index`, `data-cell-is-in-path`, `data-cell-bg`.
@@ -102,6 +108,7 @@ Visual specs use a fixed `?board=` parameter so the snapshot doesn't churn on ra
 **Unit**: drop a `*.test.ts` in `tests/unit/`. If it imports from `board.ts`, copy the three `vi.mock(...)` calls from the top of `path.test.ts`. If it touches `solve` or the trie, reset `trie.root` in `beforeEach`.
 
 **E2e**:
+
 1. Use `goHome(page, { board, size, min })` to land on a deterministic state.
 2. Call `waitForBoardReady(page)` if the test depends on the solver having produced answers.
 3. Drive the UI through the `data-testid` getters in `helpers.ts` — `cell()`, `board()`, `dragPath()`.
@@ -113,3 +120,4 @@ Visual specs use a fixed `?board=` parameter so the snapshot doesn't churn on ra
 - **Audio is not asserted.** Tone.js plays through Web Audio; we only verify the state transition that *triggers* sound (path length increase).
 - **Confetti is not asserted** for the same reason — we assert `data-is-word-found` and the post-300ms `foundWords` mutation instead.
 - **Non-English languages**: the Language `<select>` only renders one option today, so there's no e2e spec switching to Russian. The unit suite covers Russian board generation directly.
+
