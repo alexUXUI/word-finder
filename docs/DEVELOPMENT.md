@@ -17,18 +17,20 @@ gh pr create                 # open PR; preview URL shows up in PR comments
 
 ## Repository
 
-- **GitHub**: https://github.com/alexUXUI/word-finder
+- **GitHub**: [https://github.com/alexUXUI/word-finder](https://github.com/alexUXUI/word-finder)
 - **Production branch**: `main`
 - **Old repo (`alexUXUI/boggle`)**: archived in spirit. Local remote is preserved as `origin-old` if you ever need history.
 
 ## Local dev
 
-| Command | What it does |
-| --- | --- |
-| `yarn dev` | Rebuilds the Rust/WASM solver, then starts Vite SSR on `:5173`. Run this when Rust sources change. |
-| `yarn start` | Vite SSR only — no wasm rebuild. Faster reload during pure JS/TS work. |
-| `yarn build` | Full Qwik production build (client + SSR + `tsc --noEmit`). What Cloudflare Pages runs. |
-| `yarn preview` | Production build + local preview server. |
+
+| Command        | What it does                                                                                       |
+| -------------- | -------------------------------------------------------------------------------------------------- |
+| `yarn dev`     | Rebuilds the Rust/WASM solver, then starts Vite SSR on `:5173`. Run this when Rust sources change. |
+| `yarn start`   | Vite SSR only — no wasm rebuild. Faster reload during pure JS/TS work.                             |
+| `yarn build`   | Full Qwik production build (client + SSR + `tsc --noEmit`). What Cloudflare Pages runs.            |
+| `yarn preview` | Production build + local preview server.                                                           |
+
 
 **Qwik HMR gotcha**: if the dev page renders an `Invoking 'use*()' method outside of invocation context` overlay after editing, Qwik's HMR cache is stuck. Kill `yarn dev`, `rm -rf .cache node_modules/.vite tsconfig.tsbuildinfo`, restart. Doesn't repro often.
 
@@ -41,7 +43,7 @@ gh pr create                 # open PR; preview URL shows up in PR comments
 
 ## Testing
 
-Two layers, full coverage in [`TESTING.md`](./TESTING.md).
+Two layers, full coverage in `[TESTING.md](./TESTING.md)`.
 
 ```sh
 yarn test            # unit + e2e
@@ -60,27 +62,31 @@ Always run `yarn test.unit` before pushing. The unit suite is fast (~700ms) and 
 
 The `cloudflare-pages` build image is sensitive to versioning. We pin both:
 
-| Pin | Where | Why |
-| --- | --- | --- |
-| Node `20` | `.node-version` and `NODE_VERSION` env var | Pages dropped Node 16 from the image; 20 matches local. |
-| Yarn `1.22.22` | `package.json` `packageManager` field | Pages defaults to Yarn 4, which refuses to install with our Yarn-1-format `yarn.lock`. |
+
+| Pin            | Where                                      | Why                                                                                    |
+| -------------- | ------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Node `20`      | `.node-version` and `NODE_VERSION` env var | Pages dropped Node 16 from the image; 20 matches local.                                |
+| Yarn `1.22.22` | `package.json` `packageManager` field      | Pages defaults to Yarn 4, which refuses to install with our Yarn-1-format `yarn.lock`. |
+
 
 Don't change either without testing in a feature branch first.
 
 ### Project config
 
-| Setting | Value |
-| --- | --- |
-| Account | `Alexbcloud3@gmail.com's Account` (`f8f818fca34393c451967359eeb2e578`) |
-| Project | `word-finder` |
-| Build command | `yarn build` |
-| Output directory | `dist` |
-| Root directory | `/` |
-| Production branch | `main` |
-| Preview deployments | All non-Production branches |
-| PR comments | Enabled |
 
-The Cloudflare Pages GitHub App on `alexUXUI` needs repo access to `word-finder` for webhooks to fire — verify at https://github.com/settings/installations.
+| Setting             | Value                                                                  |
+| ------------------- | ---------------------------------------------------------------------- |
+| Account             | `Alexbcloud3@gmail.com's Account` (`f8f818fca34393c451967359eeb2e578`) |
+| Project             | `word-finder`                                                          |
+| Build command       | `yarn build`                                                           |
+| Output directory    | `dist`                                                                 |
+| Root directory      | `/`                                                                    |
+| Production branch   | `main`                                                                 |
+| Preview deployments | All non-Production branches                                            |
+| PR comments         | Enabled                                                                |
+
+
+The Cloudflare Pages GitHub App on `alexUXUI` needs repo access to `word-finder` for webhooks to fire — verify at [https://github.com/settings/installations](https://github.com/settings/installations).
 
 ### Pulling build status from the API
 
@@ -95,6 +101,7 @@ GET /accounts/{accountId}/pages/projects/word-finder/deployments/{id}/history/lo
 ```
 
 If a build hangs / fails, check the logs first via MCP before guessing. Common failure modes we've already hit:
+
 - Yarn 4 vs Yarn 1 lockfile mismatch — fixed by `packageManager` pin.
 - Node 16 EOL in the build image — fixed by `.node-version=20`.
 
@@ -109,25 +116,27 @@ git push
 
 ## Hosting
 
-- **Production**: https://word-finder-eak.pages.dev (alias `word-finder.pages.dev` if claimed)
+- **Production**: [https://word-finder-eak.pages.dev](https://word-finder-eak.pages.dev) (alias `word-finder.pages.dev` if claimed)
 - **Per-deployment preview**: `https://<deployment-id-prefix>.word-finder-eak.pages.dev`
 - **Per-branch alias**: `https://<branch-slug>.word-finder-eak.pages.dev`
-- **Cloudflare dashboard**: https://dash.cloudflare.com/?to=/:account/pages/view/word-finder
+- **Cloudflare dashboard**: [https://dash.cloudflare.com/?to=/:account/pages/view/word-finder](https://dash.cloudflare.com/?to=/:account/pages/view/word-finder)
 
 ## MCP tools wired into Claude Code
 
 All registered at user scope (`~/.claude.json`), available across every project on this machine.
 
-| MCP | URL | What it does |
-| --- | --- | --- |
-| **Cloudflare** (Code Mode / catch-all) | `https://mcp.cloudflare.com/mcp` | 2,500+ Cloudflare API endpoints via code execution. Pages project / deployment management, build logs, env vars. Tools: `mcp__cloudflare__execute`, `mcp__cloudflare__search`. |
-| **Cloudflare Docs** | `https://docs.mcp.cloudflare.com/mcp` | Up-to-date reference info for Workers, Pages, KV, D1, R2, AI, etc. Use when designing infra. |
-| **Cloudflare Workers Builds** | `https://builds.mcp.cloudflare.com/mcp` | Purpose-built for build/deployment monitoring. Cleaner than rolling our own API calls for build status. |
-| **Cloudflare Observability** | `https://observability.mcp.cloudflare.com/mcp` | Logs, analytics, error tracking on the deployed site. |
-| **GitHub** | `https://api.githubcopilot.com/mcp/` | Official GitHub remote MCP — PRs, issues, workflow runs, branches, releases. Tools: `mcp__github__*`. First call prompts for a PAT. |
-| **Playwright** | (built-in to Claude Code) | Drives a real browser for verifying UI changes against `:5173` or deployed Pages URLs. Tools: `mcp__playwright__*`. |
 
-The full list of Cloudflare's domain-specific MCPs (Browser Rendering, Radar, AI Gateway, etc.) lives in the [`cloudflare/mcp-server-cloudflare`](https://github.com/cloudflare/mcp-server-cloudflare) repo. Add any of them with the same `claude mcp add` pattern — they all OAuth on first use against this Cloudflare account.
+| MCP                                    | URL                                            | What it does                                                                                                                                                                   |
+| -------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Cloudflare** (Code Mode / catch-all) | `https://mcp.cloudflare.com/mcp`               | 2,500+ Cloudflare API endpoints via code execution. Pages project / deployment management, build logs, env vars. Tools: `mcp__cloudflare__execute`, `mcp__cloudflare__search`. |
+| **Cloudflare Docs**                    | `https://docs.mcp.cloudflare.com/mcp`          | Up-to-date reference info for Workers, Pages, KV, D1, R2, AI, etc. Use when designing infra.                                                                                   |
+| **Cloudflare Workers Builds**          | `https://builds.mcp.cloudflare.com/mcp`        | Purpose-built for build/deployment monitoring. Cleaner than rolling our own API calls for build status.                                                                        |
+| **Cloudflare Observability**           | `https://observability.mcp.cloudflare.com/mcp` | Logs, analytics, error tracking on the deployed site.                                                                                                                          |
+| **GitHub**                             | `https://api.githubcopilot.com/mcp/`           | Official GitHub remote MCP — PRs, issues, workflow runs, branches, releases. Tools: `mcp__github__`*. First call prompts for a PAT.                                            |
+| **Playwright**                         | (built-in to Claude Code)                      | Drives a real browser for verifying UI changes against `:5173` or deployed Pages URLs. Tools: `mcp__playwright__`*.                                                            |
+
+
+The full list of Cloudflare's domain-specific MCPs (Browser Rendering, Radar, AI Gateway, etc.) lives in the `[cloudflare/mcp-server-cloudflare](https://github.com/cloudflare/mcp-server-cloudflare)` repo. Add any of them with the same `claude mcp add` pattern — they all OAuth on first use against this Cloudflare account.
 
 ### Adding / removing MCPs
 
@@ -141,18 +150,20 @@ claude mcp remove <name> -s user                        # unregister
 
 ## Agent Skills
 
-Skills are markdown prompts that Claude auto-loads when a conversation matches their triggers, plus user-invocable `/<skill>` commands. Installed globally via [`npx skills`](https://skills.sh) into `~/.claude/skills/`:
+Skills are markdown prompts that Claude auto-loads when a conversation matches their triggers, plus user-invocable `/<skill>` commands. Installed globally via `[npx skills](https://skills.sh)` into `~/.claude/skills/`:
 
-| Skill | When it auto-loads / What it does |
-| --- | --- |
-| `cloudflare` | Anything Workers / Pages / KV / D1 / R2 / Workers AI / networking / WAF / Terraform / Pulumi. |
-| `agents-sdk` | Building stateful AI agents — state, scheduling, RPC, MCP servers, email, streaming chat. |
-| `durable-objects` | Stateful coordination patterns (chat rooms, games, booking), RPC, SQLite, alarms, WebSockets. |
-| `sandbox-sdk` | Secure code execution / interpreters / interactive dev environments. |
-| `wrangler` | Wrangler CLI patterns (deploy, dev, secrets, tail). |
-| `workers-best-practices` | Performance / cost / DX patterns for Workers. |
-| `web-perf` | Web performance triage. |
-| `cloudflare-email-service` | Cloudflare Email Routing / Workers email. |
+
+| Skill                      | When it auto-loads / What it does                                                             |
+| -------------------------- | --------------------------------------------------------------------------------------------- |
+| `cloudflare`               | Anything Workers / Pages / KV / D1 / R2 / Workers AI / networking / WAF / Terraform / Pulumi. |
+| `agents-sdk`               | Building stateful AI agents — state, scheduling, RPC, MCP servers, email, streaming chat.     |
+| `durable-objects`          | Stateful coordination patterns (chat rooms, games, booking), RPC, SQLite, alarms, WebSockets. |
+| `sandbox-sdk`              | Secure code execution / interpreters / interactive dev environments.                          |
+| `wrangler`                 | Wrangler CLI patterns (deploy, dev, secrets, tail).                                           |
+| `workers-best-practices`   | Performance / cost / DX patterns for Workers.                                                 |
+| `web-perf`                 | Web performance triage.                                                                       |
+| `cloudflare-email-service` | Cloudflare Email Routing / Workers email.                                                     |
+
 
 Plus user-invocable commands provided by the `cloudflare` skill:
 
@@ -185,4 +196,5 @@ The combination of unit tests + e2e + Cloudflare previews + the MCP surface mean
 - `/service-worker.js` 404 in the deployed site console: `src/routes/service-worker.ts` exists but the static generator isn't emitting it. App functions without it.
 - Pre-existing `tsc --noEmit` error: `src/components/boggle/models.ts:43` has a hardcoded absolute path (`/Users/alexbennett/Desktop/personal/...`) for a type-only import. Needs to be made relative.
 - `pnpm-lock.yaml` lingering in the repo from a previous experiment — we use yarn; safe to delete.
-- `boggle-solver/pkg/*` files often dirty in working tree because `yarn dev` rebuilds wasm. Either commit them after intentional Rust changes or git-ignore the pkg outputs.
+- `boggle-solver/pkg/`* files often dirty in working tree because `yarn dev` rebuilds wasm. Either commit them after intentional Rust changes or git-ignore the pkg outputs.
+

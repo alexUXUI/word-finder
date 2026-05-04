@@ -109,9 +109,9 @@ export const ProfilePage = component$(() => {
           </span>
         </div>
         <div style="display: flex; gap: 20px; flex: 0 0 auto;">
+          <Stat label="Games" value={me?.playedGames?.length ?? 0} testId="profile-stat-games" />
           <Stat label="Boards" value={me?.favoriteBoards?.length ?? 0} testId="profile-stat-boards" />
           <Stat label="Friends" value={me?.friends?.length ?? 0} testId="profile-stat-friends" />
-          <Stat label="Recent" value={me?.recentPlayers?.length ?? 0} testId="profile-stat-recent" />
         </div>
       </header>
 
@@ -179,6 +179,7 @@ export const OverviewTab = component$(() => {
         <KV label="Last updated" value={lastUpdated} />
       </Card>
       <Card title="Activity" testId="profile-card-activity">
+        <KV label="Games played" value={`${me.playedGames?.length ?? 0}`} />
         <KV label="Favorite boards" value={`${me.favoriteBoards.length}`} />
         <KV label="Friends" value={`${me.friends.length}`} />
         <KV label="Recent players" value={`${me.recentPlayers.length}`} />

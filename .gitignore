@@ -55,3 +55,4 @@ smart-mode-*.png
 
 # Benchmark "latest" pointer; versioned baselines under docs/baselines/ are committed
 docs/.benchmark-baseline.json
+evals/results/

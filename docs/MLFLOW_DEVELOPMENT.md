@@ -21,7 +21,7 @@ mlflow server --host 127.0.0.1 --port 5000
 MLFLOW_TRACE=1 yarn eval        # routes every search to MLflow
 ```
 
-Then open <http://127.0.0.1:5000> in a browser and look for the **`word-finder-eval-v1`** experiment. Each goal × run produces one trace. Click in to see the span tree.
+Then open [http://127.0.0.1:5000](http://127.0.0.1:5000) in a browser and look for the `**word-finder-eval-v1**` experiment. Each goal × run produces one trace. Click in to see the span tree.
 
 ## What a trace looks like
 
@@ -46,12 +46,14 @@ agent.generate_board  (AGENT, root — wraps everything)
 
 ## Configuring the endpoint
 
-| Var / option | Default | What it does |
-| --- | --- | --- |
-| `MLFLOW_TRACE=1` | unset (no tracing) | Toggles MLflow tracer in `yarn eval`. |
-| `MLFLOW_OTLP_ENDPOINT` | `http://localhost:5000/v1/traces` | Override target endpoint (e.g. point at a remote server). |
-| `MLFLOW_TRACER_OPTIONS.experimentName` | `word-finder` | MLflow experiment name. |
-| `MLFLOW_TRACER_OPTIONS.silent` | `false` | Suppress export errors (useful for CI where MLflow isn't running). |
+
+| Var / option                           | Default                           | What it does                                                       |
+| -------------------------------------- | --------------------------------- | ------------------------------------------------------------------ |
+| `MLFLOW_TRACE=1`                       | unset (no tracing)                | Toggles MLflow tracer in `yarn eval`.                              |
+| `MLFLOW_OTLP_ENDPOINT`                 | `http://localhost:5000/v1/traces` | Override target endpoint (e.g. point at a remote server).          |
+| `MLFLOW_TRACER_OPTIONS.experimentName` | `word-finder`                     | MLflow experiment name.                                            |
+| `MLFLOW_TRACER_OPTIONS.silent`         | `false`                           | Suppress export errors (useful for CI where MLflow isn't running). |
+
 
 ## Browser → MLflow (Phase 2.0c+)
 
@@ -65,17 +67,19 @@ The proxy is unnecessary for Node-side runs (`yarn eval`, `yarn bench`, CI) — 
 
 ## Troubleshooting
 
-**`ECONNREFUSED 127.0.0.1:5000`** — MLflow server isn't running. Start it with `mlflow server --port 5000`.
+`**ECONNREFUSED 127.0.0.1:5000**` — MLflow server isn't running. Start it with `mlflow server --port 5000`.
 
-**`404 /v1/traces`** — Your MLflow version is older than 2.21. Upgrade: `pip install --upgrade 'mlflow>=2.21'`.
+`**404 /v1/traces**` — Your MLflow version is older than 2.21. Upgrade: `pip install --upgrade 'mlflow>=2.21'`.
 
 **Traces never appear in UI** — Check the MLflow server logs for parse errors. The OTLP payload format is strict; if the proxy/tracer changes shape, the server quietly drops bad batches.
 
-**`yarn eval` fails because MLflow isn't up** — Either start MLflow, or run without the tracer: just `yarn eval` (no env var). The MLflowTracer logs export errors but does not fail the run by default; the eval result is unaffected.
+`**yarn eval` fails because MLflow isn't up** — Either start MLflow, or run without the tracer: just `yarn eval` (no env var). The MLflowTracer logs export errors but does not fail the run by default; the eval result is unaffected.
 
 ## Why MLflow specifically
 
 We picked MLflow because:
+
 - **Free + open source.** No vendor lock-in for a local-dev observability tool.
 - **OTLP-compatible.** Standard format — if MLflow stops being a good fit, we point the same emitter at any OTel collector.
 - **Built for ML iteration.** Experiments, runs, traces, and metrics all live in one tool. Phase 6 (offline prompt optimization) outputs land in the same UI as production traces.
+

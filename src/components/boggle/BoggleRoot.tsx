@@ -39,7 +39,7 @@ import {
   recordRecentGame,
   readRecentGames,
 } from './multiplayer/storage';
-import { recordRecentPlayer } from './profile/api';
+import { recordRecentPlayer, recordPlayedGame } from './profile/api';
 import BoggleWorker from './worker?worker';
 
 import type {
@@ -351,9 +351,9 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
           }
           multiplayerState.lastResults = frame.results;
           appendEvent({ kind: 'ended', text: 'Game ended' });
-          // Record opponents in this player's "recent players" list — fire
-          // and forget; failures are non-fatal (no UI surface) since the
-          // game is already over.
+          // Record opponents in this player's "recent players" list AND
+          // archive the game itself into played-games. Both fire-and-forget
+          // — failures are non-fatal (no UI surface) since the game is over.
           const myId = multiplayerState.playerId;
           const gameLabel = multiplayerState.game?.displayName ?? game;
           for (const row of frame.results.perPlayer) {
@@ -362,6 +362,25 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
               displayName: row.displayName,
               gameName: gameLabel,
             }).catch(() => { /* swallow — best-effort */ });
+          }
+          // Played-game archive — one entry per game per player.
+          const me = frame.results.perPlayer.find((p) => p.playerId === myId);
+          const totalUnique = frame.results.perPlayer.reduce(
+            (s, p) => s + p.points, 0,
+          );
+          if (me && multiplayerState.game) {
+            recordPlayedGame(myId, {
+              gameName: game,
+              gameDisplayName: gameLabel,
+              board: multiplayerState.game.board,
+              size: multiplayerState.game.boardSize,
+              myUnique: me.points,
+              totalUnique,
+              playerCount: frame.results.perPlayer.length,
+              won: frame.results.winnerIds.includes(myId),
+              startedAt: multiplayerState.game.startedAt ?? frame.endedAt,
+              endedAt: frame.endedAt,
+            }).catch(() => { /* swallow */ });
           }
           return;
         }

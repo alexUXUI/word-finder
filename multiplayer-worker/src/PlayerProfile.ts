@@ -12,10 +12,12 @@ import type {
   FavoriteBoard,
   FriendEntry,
   RecentPlayer,
+  PlayedGame,
   UpdateProfileBody,
   AddFavoriteBoardBody,
   AddFriendBody,
   RecordRecentBody,
+  RecordPlayedGameBody,
 } from '../../src/components/boggle/profile/types';
 
 interface Env {
@@ -26,6 +28,7 @@ const STATE_KEY = 'state';
 const MAX_FAVORITES = 200;
 const MAX_RECENT = 30;
 const MAX_FRIENDS = 500;
+const MAX_PLAYED_GAMES = 200;
 
 const cors = (init: ResponseInit = {}, body: BodyInit | null = null): Response => {
   const headers = new Headers(init.headers);
@@ -54,6 +57,7 @@ const emptyState = (playerId: string): PlayerProfileState => ({
   favoriteBoards: [],
   friends: [],
   recentPlayers: [],
+  playedGames: [],
 });
 
 export class PlayerProfile extends DurableObject<Env> {
@@ -80,6 +84,11 @@ export class PlayerProfile extends DurableObject<Env> {
 
     if (!this.state) {
       this.state = emptyState(playerId);
+      await this.persist();
+    }
+    // Hydrate playedGames for profiles created before the field existed.
+    if (!Array.isArray((this.state as PlayerProfileState).playedGames)) {
+      (this.state as PlayerProfileState).playedGames = [];
       await this.persist();
     }
 
@@ -177,6 +186,37 @@ export class PlayerProfile extends DurableObject<Env> {
       this.state.updatedAt = Date.now();
       await this.persist();
       return json(200, { recent: next });
+    }
+
+    // ─── played games (auto-tracked from multiplayer game ends) ───
+    if (request.method === 'POST' && rest === '/game') {
+      const body = await this.readJson<RecordPlayedGameBody>(request);
+      if (!body || typeof body.board !== 'string' || typeof body.size !== 'number') {
+        return json(400, { error: 'board and size are required' });
+      }
+      // Idempotent on (gameName, endedAt) — same game can't double-record
+      // even if the ended-event fires twice on a flaky reconnect.
+      const existing = this.state.playedGames.find(
+        (g) => g.gameName === body.gameName && g.endedAt === body.endedAt,
+      );
+      if (existing) return json(200, { game: existing, alreadyExists: true });
+      const game: PlayedGame = {
+        id: newId(),
+        gameName: trim(body.gameName.trim().toLowerCase(), 48),
+        gameDisplayName: trim((body.gameDisplayName || body.gameName).trim(), 48),
+        board: body.board,
+        size: body.size,
+        myUnique: typeof body.myUnique === 'number' ? body.myUnique : 0,
+        totalUnique: typeof body.totalUnique === 'number' ? body.totalUnique : 0,
+        playerCount: typeof body.playerCount === 'number' ? body.playerCount : 1,
+        won: !!body.won,
+        startedAt: typeof body.startedAt === 'number' ? body.startedAt : Date.now(),
+        endedAt: typeof body.endedAt === 'number' ? body.endedAt : Date.now(),
+      };
+      this.state.playedGames = [game, ...this.state.playedGames].slice(0, MAX_PLAYED_GAMES);
+      this.state.updatedAt = Date.now();
+      await this.persist();
+      return json(201, { game, alreadyExists: false });
     }
 
     return json(404, { error: `no route: ${request.method} ${rest}` });

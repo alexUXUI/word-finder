@@ -13,6 +13,8 @@ import type {
   FriendEntry,
   RecordRecentBody,
   RecentPlayer,
+  RecordPlayedGameBody,
+  PlayedGame,
 } from './types';
 
 export const buildProfileBaseUrl = (): string => {
@@ -101,3 +103,13 @@ export const recordRecentPlayer = (
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   }).then((r) => handle<{ recent: RecentPlayer }>(r));
+
+export const recordPlayedGame = (
+  playerId: string,
+  body: RecordPlayedGameBody,
+): Promise<{ game: PlayedGame; alreadyExists: boolean }> =>
+  fetch(profileUrl(playerId, '/game'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then((r) => handle<{ game: PlayedGame; alreadyExists: boolean }>(r));

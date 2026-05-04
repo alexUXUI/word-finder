@@ -12,10 +12,12 @@ BENCH_LABEL="<short-name>" BENCH_GIT_SHA="$(git rev-parse --short HEAD)" yarn be
 ```
 
 Outputs:
+
 - `docs/baselines/<iso-timestamp>__<label>.json` — committed, versioned, append-only.
 - `docs/.benchmark-baseline.json` — pointer to the latest run, gitignored.
 
 The bench is `tests/bench/baseline.test.ts`. It generates 100 boards via the current `randomBoard`, solves each, and records:
+
 - **Timing**: solve mean / p10 / p90 / std-dev, candidates/sec.
 - **Word counts**: total + player-relevant (5+) distribution.
 - **Diversity**: pairwise Jaccard on 5+ word sets, pairwise Levenshtein on flat board strings.
@@ -29,18 +31,20 @@ The bench is `tests/bench/baseline.test.ts`. It generates 100 boards via the cur
 
 ## What "improvement" means per metric
 
-| Metric | "Better" means | Today's value |
-| --- | --- | --- |
-| `wordCount.playerRelevant_5plus.mean` | higher | 91.5 |
-| `wordCount.playerRelevant_5plus.p10` | higher | ~30 |
-| `wordCount.playerRelevant_5plus.stdDev` | *not lower* — variance is fine, it's diversity | 33.8 |
-| `diversity.jaccardOnPlayerRelevantWordSets.mean` | **lower** (less word overlap across boards) | 0.016 |
-| `structural.distinctVowelMultisets` | higher (more vowel patterns) | **1** |
-| `structural.vowelMultisetEntropyBits` | higher (more unpredictable vowel inventory) | **0.000** |
-| `structural.vowelCount.stdDev` | higher (more variance in vowel density) | **0.000** |
-| `structural.letterCoverage` | 26/26 | 24/26 |
-| `structural.bigramCoverage` | higher (more letter pairs reachable) | 255/351 |
-| `timing.candidatesPerSecond` | higher (or stable, not collapsing) | ~15 |
+
+| Metric                                           | "Better" means                                 | Today's value |
+| ------------------------------------------------ | ---------------------------------------------- | ------------- |
+| `wordCount.playerRelevant_5plus.mean`            | higher                                         | 91.5          |
+| `wordCount.playerRelevant_5plus.p10`             | higher                                         | ~30           |
+| `wordCount.playerRelevant_5plus.stdDev`          | *not lower* — variance is fine, it's diversity | 33.8          |
+| `diversity.jaccardOnPlayerRelevantWordSets.mean` | **lower** (less word overlap across boards)    | 0.016         |
+| `structural.distinctVowelMultisets`              | higher (more vowel patterns)                   | **1**         |
+| `structural.vowelMultisetEntropyBits`            | higher (more unpredictable vowel inventory)    | **0.000**     |
+| `structural.vowelCount.stdDev`                   | higher (more variance in vowel density)        | **0.000**     |
+| `structural.letterCoverage`                      | 26/26                                          | 24/26         |
+| `structural.bigramCoverage`                      | higher (more letter pairs reachable)           | 255/351       |
+| `timing.candidatesPerSecond`                     | higher (or stable, not collapsing)             | ~15           |
+
 
 The bolded values above are the ones Phase 1's vowel-pool fix is expected to move. They're our measurable acceptance criteria.
 
