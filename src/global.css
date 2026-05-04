@@ -454,3 +454,18 @@ a.mindblow:hover {
     0 1px 3px rgba(245, 158, 11, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
+
+/* Multiplayer panel — short-lived flash on a player-row word-count update.
+   The PlayerList re-keys the count span on every change, so the animation
+   replays automatically without needing JS-side animation triggers. */
+@keyframes mp-pulse {
+  0%   { transform: scale(1);   text-shadow: none; }
+  35%  { transform: scale(1.25); text-shadow: 0 0 8px currentColor; }
+  100% { transform: scale(1);   text-shadow: none; }
+}
+
+/* Recent-events feed — entries slide up + fade in when appended. */
+@keyframes mp-slide-in {
+  0%   { transform: translateY(6px); opacity: 0; }
+  100% { transform: translateY(0);   opacity: 1; }
+}

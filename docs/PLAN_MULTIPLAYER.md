@@ -48,6 +48,8 @@ Optional v2: weight by word length (`max(1, length - 4)` so a 9-letter unique wo
 
 ## 3 — Architecture
 
+> **Spike finding (2026-05-03, branch `feat/multiplayer`):** Verified against current Cloudflare docs. Pages CAN proxy WebSocket upgrades to a Durable Object, **but the DO class itself must live in a separate Worker** — "You cannot create and deploy a Durable Object within a Pages project" ([Pages Functions bindings docs](https://developers.cloudflare.com/pages/functions/bindings/)). The Pages Function reaches the DO via a `[[durable_objects.bindings]]` entry whose `script_name` points at the external Worker. Picked **Option A — Pages-Function proxy** over a direct-to-Worker URL because (a) it matches the existing `/api/llm` pattern, (b) browser stays same-origin (no CORS, no second hostname). §11 risk row "Cloudflare Pages + DO WS support" is therefore mitigated, not triggered. The §3 file layout below is updated to put `GameRoom` in its own Worker package (`multiplayer-worker/`), with the Pages Function as a thin proxy.
+
 ### Real-time backbone: Cloudflare Durable Objects
 
 The repo is already on Cloudflare Pages with a Pages Function pattern (`functions/api/llm.ts` for the SLM bridge). Add a second Pages Function (`functions/api/games/[name].ts`) that upgrades the request to a WebSocket and proxies to a **Durable Object** scoped by game name.
@@ -68,23 +70,45 @@ Why not polling:
 
 ### Wrangler binding
 
+Two configs now (per spike finding above):
+
 ```toml
-# wrangler.toml — added to existing config
+# wrangler.toml (Pages project) — binds to the external Worker that hosts the DO.
+# script_name is REQUIRED here because the DO doesn't live in this project.
 [[durable_objects.bindings]]
 name = "GAME_ROOM"
 class_name = "GameRoom"
-script_name = "word-finder"  # Pages Functions ship under the project name
+script_name = "word-finder-multiplayer"
+
+# Migrations belong in the Worker that owns the class — not here.
+```
+
+```toml
+# multiplayer-worker/wrangler.toml — the Worker that hosts the GameRoom DO class.
+name = "word-finder-multiplayer"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+
+[[durable_objects.bindings]]
+name = "GAME_ROOM"
+class_name = "GameRoom"
 
 [[migrations]]
 tag = "multiplayer-v1"
-new_classes = ["GameRoom"]
+new_sqlite_classes = ["GameRoom"]
 ```
 
 ### File layout
 
 ```
-functions/api/games/[name].ts          # WS upgrade → DO routing
-src/server/durable-objects/GameRoom.ts # the DO class
+functions/api/games/[name].ts          # WS upgrade → forwards to bound DO
+multiplayer-worker/                    # separate Worker package — hosts the DO
+  wrangler.toml
+  src/index.ts                         # default fetch: routes /games/:name → DO
+  src/GameRoom.ts                      # the DO class (WS Hibernation API)
+  src/protocol.ts                      # symlink/copy of client protocol.ts
+  src/path-validation.ts               # symlink/copy of client path-validation.ts
+  src/scoring.ts                       # symlink/copy of client scoring.ts
 src/components/boggle/multiplayer/
   MultiplayerPanel.tsx                 # the side panel
   PlayerList.tsx                       # connected players + word counts
@@ -417,17 +441,27 @@ No auth, no accounts. Player id is just a stable UUID. If they clear localStorag
 
 ### Phase 1 — Core multiplayer (this kickoff session's target)
 
-- [ ] `src/server/durable-objects/GameRoom.ts` — DO class with state, message handlers, dictionary loading
-- [ ] `functions/api/games/[name].ts` — WS upgrade → DO
-- [ ] `wrangler.toml` — DO binding + migration
-- [ ] `src/components/boggle/multiplayer/protocol.ts` — message schema + zod validators
+**Server side (proven on `feat/multiplayer`, smoke-tested 2026-05-03):**
+
+- [x] `multiplayer-worker/src/GameRoom.ts` — DO class with state, message handlers, dictionary loading (lazy fetch from `boggle.pages.dev/engmix.txt`, cached in DO storage), WS Hibernation API
+- [x] `multiplayer-worker/src/index.ts` — Worker fetch entry, routes `/games/:name` → DO
+- [x] `multiplayer-worker/wrangler.toml` — DO binding + migration (`new_classes` for wrangler@3 / Node 20 / macOS 13.2 compat; switch to `new_sqlite_classes` once host is on Node 22)
+- [x] `functions/api/games/[name].ts` — Pages Function proxies WS upgrade to bound DO via `script_name = "word-finder-multiplayer"`
+- [x] `wrangler.toml` (Pages) — adds `[[durable_objects.bindings]]` GAME_ROOM
+- [x] `src/components/boggle/multiplayer/protocol.ts` — pure-TS message schema + `parseClientFrame` discriminated-union validator (no zod; the project doesn't have it)
+- [x] `src/components/boggle/multiplayer/path-validation.ts` — server-side 8-neighbor DFS Boggle check
+- [x] `src/components/boggle/multiplayer/scoring.ts` — unique-vs-shared algorithm, ranked results
+- [x] Unit tests: scoring (7), path validation (10), protocol round-trip (6) — `tests/unit/multiplayer/*.test.ts`, all passing
+- [x] Smoke test: `multiplayer-worker/test/smoke.mjs` — two-WS-client end-to-end run via `wrangler dev`; replaces the wscat ask in §13 with something reproducible
+
+**Client side (next):**
+
 - [ ] `client.ts` — WS client with auto-reconnect, exponential backoff, heartbeat
 - [ ] `MultiplayerPanel.tsx` (with all 4 states) + `JoinForm.tsx` + `PlayerList.tsx` + `EndGameResults.tsx`
 - [ ] Wire into `BoggleRoot.tsx`, add right-edge tab in `MultiplayerPanel.tsx`
 - [ ] `multiplayerCtx` in `context.tsx` (gameState, playerId, displayName, ws ref)
 - [ ] Board swap: when `multiplayer.state === 'playing'`, board becomes `multiplayer.gameState.board`
 - [ ] Word emission: `handleFoundWord` checks if multiplayer is active → emit WS instead of (or in addition to) the local found-words flow
-- [ ] Unit tests: scoring, path validation, protocol round-trip
 - [ ] E2E test: 2 Playwright tabs join same game, find different words, ready up, see correct winner
 
 ### Phase 2 — Polish
@@ -484,6 +518,87 @@ No auth, no accounts. Player id is just a stable UUID. If they clear localStorag
 - Glass UI matches the existing aesthetic; right-edge tab + slide-in panel
 - Existing single-player flow (Smart Mode Reset, Pipeline Lab, Batch Dashboard) is unaffected when not in a game
 - Build green, lint clean, deployed to prod, verified on `word-finder-eak.pages.dev`
+
+## 15 — Deploying
+
+Two artifacts ship: the multiplayer Worker (DO host) and the Pages project (the app + Pages Function proxy). The Pages binding in `wrangler.toml` references the Worker by `script_name`, so the Worker MUST be deployed first or the Pages binding fails to resolve.
+
+### One-time setup
+
+```bash
+# 1. Authenticate (only needed once per machine).
+wrangler login
+
+# 2. Deploy the multiplayer Worker. Creates the `word-finder-multiplayer`
+#    Worker + the GameRoom DO class + the migration in your CF account.
+cd multiplayer-worker
+./node_modules/.bin/wrangler deploy
+```
+
+The first deploy applies migration `multiplayer-v1`, registering the `GameRoom` class. Subsequent code-only deploys are `wrangler deploy` again — the migration only runs once unless you bump the tag.
+
+### Pushing the app
+
+```bash
+cd ..
+git push origin feat/multiplayer
+```
+
+Cloudflare Pages auto-builds the branch and produces a preview URL like `feat-multiplayer.word-finder-eak.pages.dev`. The preview includes the new `[[durable_objects.bindings]]` GAME_ROOM binding from `wrangler.toml` and routes `/api/games/:name` to the Worker. To play:
+
+1. Open the preview URL in two browser tabs.
+2. Click 🎮 on the right edge of each tab.
+3. Type the same game name in both. Type different display names.
+4. Hit Join in both. They appear in each other's lobby.
+5. Either tab clicks **Start game** — both boards swap to the shared one.
+6. Find words. Counts update live.
+7. Both click ✓ Ready to end. Game ends, results show winner.
+
+### Local-only end-to-end run (no deploy required)
+
+```bash
+# Terminal A — multiplayer Worker on :8788
+cd multiplayer-worker && ./node_modules/.bin/wrangler dev --port 8788
+
+# Terminal B — Qwik dev server on :5173
+yarn start
+
+# Two browser tabs at http://localhost:5173 — the WS client auto-detects
+# localhost and points at ws://localhost:8788/games/<name>.
+```
+
+### Local API smoke test (no UI)
+
+```bash
+node multiplayer-worker/test/smoke.mjs
+# Drives 2 programmatic WS clients through the full §5 protocol against
+# whichever wrangler dev is on :8788. Exits 0 on success.
+```
+
+### Rollback
+
+If anything goes sideways in production:
+
+- Pages: revert the branch and re-deploy via Pages.
+- DO: `cd multiplayer-worker && wrangler delete` removes the Worker (will also drop in-flight game state — there is no migration for that).
+
+### Migration to wrangler@4 + Node 22 (one-line gotcha)
+
+The pinned wrangler@3.40 in `multiplayer-worker/package.json` exists only because the bundled workerd in wrangler@4 requires macOS 13.5+ and the dev host is on 13.2. When the host upgrades:
+
+```diff
+-    "wrangler": "^3.40.0",
++    "wrangler": "^4.87.0",
+```
+
+and in `multiplayer-worker/wrangler.toml`:
+
+```diff
+-new_classes = ["GameRoom"]
++new_sqlite_classes = ["GameRoom"]
+```
+
+`new_sqlite_classes` is the production-recommended storage backend for newly-created DO classes — cheaper and faster.
 
 ## See also
 
