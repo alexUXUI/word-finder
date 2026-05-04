@@ -38,6 +38,7 @@ import {
   recordRecentGame,
   readRecentGames,
 } from './multiplayer/storage';
+import { recordRecentPlayer } from './profile/api';
 import BoggleWorker from './worker?worker';
 
 import type {
@@ -333,6 +334,18 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
           }
           multiplayerState.lastResults = frame.results;
           appendEvent({ kind: 'ended', text: 'Game ended' });
+          // Record opponents in this player's "recent players" list — fire
+          // and forget; failures are non-fatal (no UI surface) since the
+          // game is already over.
+          const myId = multiplayerState.playerId;
+          const gameLabel = multiplayerState.game?.displayName ?? game;
+          for (const row of frame.results.perPlayer) {
+            if (row.playerId === myId) continue;
+            recordRecentPlayer(myId, row.playerId, {
+              displayName: row.displayName,
+              gameName: gameLabel,
+            }).catch(() => { /* swallow — best-effort */ });
+          }
           return;
         }
         if (frame.type === 'error') {

@@ -1,9 +1,10 @@
 import { component$, Slot } from '@builder.io/qwik';
+import { ChromeShell } from '~/components/shell/ChromeShell';
 
 export default component$(() => {
   return (
-    <section>
+    <ChromeShell>
       <Slot />
-    </section>
+    </ChromeShell>
   );
 });

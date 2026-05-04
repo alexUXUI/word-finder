@@ -15,14 +15,19 @@ pages_build_output_dir = "./dist"
 [ai]
 binding = "AI"
 
-# Multiplayer GameRoom DO — the class itself lives in the
+# Multiplayer + profile DOs — the classes live in the
 # `word-finder-multiplayer` Worker (multiplayer-worker/wrangler.toml). Pages
 # can't host DO classes directly, so we bind to the external script.
 # Deploy that Worker first (`cd multiplayer-worker && wrangler deploy`)
-# before this binding will resolve in production.
+# before these bindings will resolve in production.
 [[durable_objects.bindings]]
 name = "GAME_ROOM"
 class_name = "GameRoom"
+script_name = "word-finder-multiplayer"
+
+[[durable_objects.bindings]]
+name = "PROFILE"
+class_name = "PlayerProfile"
 script_name = "word-finder-multiplayer"
 
 # Public, non-secret config. Bindings/secrets are managed in the
