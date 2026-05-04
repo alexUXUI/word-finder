@@ -7,6 +7,11 @@ import {
   WorkerCtx,
 } from '../context';
 import type { BatchRunRow } from '../context';
+import {
+  loadRatings,
+  persistRating,
+  exportRatingsToFile,
+} from '../calibration/storage';
 
 /**
  * Multi-run dashboard. Renders inline below the Smart Banner once a batch
@@ -55,6 +60,9 @@ export const BatchDashboard = component$(() => {
 
   const sort = useSignal<SortState>({ key: 'finalScore', dir: 'desc' });
   const orderByRun = useSignal<boolean>(false);
+  const ratingsCount = useSignal<number>(
+    typeof window !== 'undefined' ? loadRatings().length : 0
+  );
 
   // The dashboard only renders when there's batch data. The chart can
   // appear mid-run (partial data) so we don't gate on completion.
@@ -84,25 +92,17 @@ export const BatchDashboard = component$(() => {
   });
 
   const rateRow = $((row: BatchRunRow, rating: number) => {
-    if (typeof window === 'undefined') return;
-    const ratingsKey = 'word-finder.calibration.ratings';
-    try {
-      const existing = JSON.parse(
-        window.localStorage.getItem(ratingsKey) ?? '[]'
-      ) as unknown[];
-      const arr = Array.isArray(existing) ? existing : [];
-      arr.push({
-        pipelineId: row.pipelineId,
-        board: row.board,
-        goalSignature: `size=${board.boardSize};min=${game.minCharLength}`,
-        rating,
-        capturedAt: new Date().toISOString(),
-      });
-      window.localStorage.setItem(ratingsKey, JSON.stringify(arr));
-    } catch {
-      /* ignore */
-    }
+    persistRating({
+      pipelineId: row.pipelineId,
+      board: row.board,
+      goalSignature: `size=${board.boardSize};min=${game.minCharLength}`,
+      rating,
+      capturedAt: new Date().toISOString(),
+    });
+    ratingsCount.value = loadRatings().length;
   });
+
+  const exportRatings = $(() => exportRatingsToFile());
 
   // ── stats ───────────────────────────────────────────────────────────
   const pwVals = rows.map((r) => r.playerRelevantWords);
@@ -225,6 +225,22 @@ export const BatchDashboard = component$(() => {
             </span>
           </div>
         )}
+        <span style="margin-left: auto; font-size: 11px; color: #475569; display: flex; align-items: center; gap: 6px;">
+          <span data-testid="calibration-ratings-count">
+            {ratingsCount.value} ratings
+          </span>
+          {ratingsCount.value > 0 && (
+            <button
+              type="button"
+              data-testid="calibration-export"
+              onClick$={exportRatings}
+              title="Download ratings as JSON for the bench calibration step"
+              style="font-size: 11px; padding: 2px 8px; border: 1px solid #cbd5e1; background: white; cursor: pointer; border-radius: 4px;"
+            >
+              ⬇ export
+            </button>
+          )}
+        </span>
       </header>
 
       {/* Bar chart */}

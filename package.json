@@ -28,6 +28,7 @@
     "bench": "tsx evals/run-bench.ts",
     "bench:quick": "tsx evals/run-bench.ts --quick",
     "bench:report": "tsx evals/leaderboard.ts",
+    "bench:calibrate": "tsx evals/calibrate.ts",
     "bench:perf": "vitest run --config vitest.bench.config.ts",
     "eval": "vitest run --config vitest.eval.config.ts",
     "mlflow.proxy": "python3 tools/mlflow-proxy/server.py",
