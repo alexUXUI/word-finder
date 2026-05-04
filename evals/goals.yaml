@@ -1,0 +1,92 @@
+# Word Finder eval suite v2 — goal definitions.
+#
+# Each goal is run against every registered pipeline. Per-goal targets are
+# floors; the bench leaderboard reports paired-bootstrap CIs across pipelines
+# for every metric. See `docs/EVAL_SUITE.md` for the schema and statistical
+# protocol; see `docs/AI_ENGINEERING.md` §5 for the framing.
+#
+# Categories:
+#   structured     — direct goal fields (style, requiredLetters, …)
+#   prompt-driven  — free-form NL prompt with ground-truth structured goal;
+#                    tests algorithm G (slm-parsed-prompt) once it ships
+#   calibration    — judge-vs-human alignment; not gating until calibrated
+
+- id: default-balanced
+  category: structured
+  description: >
+    Default first-load experience. Many interesting words across lengths,
+    diverse boards, modest cost.
+  weight: 1.0
+  config:
+    size: 5
+    minWordLength: 5
+    language: English
+  runs: 20
+  targets:
+    playerRelevantWords.mean: ">= 150"
+    playerRelevantWords.p10:  ">= 100"
+    maxWordLength.mean:       ">= 6"
+    pairwiseJaccard.mean:     ">= 0.4"
+    vowelInventoryEntropyBits: ">= 4.0"
+    letterCoverage:           ">= 22"
+    meanElapsedMs:            "<= 8000"
+
+- id: long-word-heavy
+  category: structured
+  description: Boards that incentivize long words.
+  weight: 0.7
+  config:
+    size: 5
+    minWordLength: 5
+    language: English
+    style: long-word-heavy
+  runs: 20
+  targets:
+    maxWordLength.mean:       ">= 7"
+    wordsByLength.>=8.mean:   ">= 1"
+    playerRelevantWords.mean: ">= 100"
+
+- id: rare-letter-chaotic
+  category: structured
+  description: Rare letters present, broad letter coverage.
+  weight: 0.6
+  config:
+    size: 5
+    minWordLength: 5
+    language: English
+    style: chaotic
+    requiredLetters: [q, z]
+  runs: 20
+  targets:
+    vowelInventoryEntropyBits: ">= 5.0"
+    letterEntropy.mean:        ">= 4.0"
+
+- id: classic-boggle
+  category: structured
+  description: Traditional 4x4 / 3+ letter Boggle.
+  weight: 0.5
+  config:
+    size: 4
+    minWordLength: 3
+    language: English
+  runs: 20
+  targets:
+    playerRelevantWords.mean: ">= 60"
+    playerRelevantWords.p10:  ">= 30"
+    meanElapsedMs:            "<= 3000"
+
+- id: vowel-rich
+  category: structured
+  description: High vowel ratio for friendlier boards.
+  weight: 0.4
+  config:
+    size: 5
+    minWordLength: 5
+    language: English
+    style: balanced
+    extra:
+      vowelRatioOptimumValue: 0.5
+  runs: 20
+  targets:
+    vowelRatio.deviation: "<= 0.1"
+    playerRelevantWords.mean: ">= 130"

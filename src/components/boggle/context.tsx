@@ -7,6 +7,9 @@ import type {
   AnswersState,
   WebWorkerState,
 } from './models';
+import type { BuilderState } from './builder/types';
+
+export type { BuilderState };
 
 export const BoardCtx = createContext<BoardState>('board-context');
 export const DictionaryCtx = createContext<DictionaryState>('dictionary');
@@ -22,9 +25,9 @@ export interface SmartState {
   modelStatus: SmartModelStatus;
   modelLoadProgress: number;
   modelLoadError?: string;
-  /** Which model tier was picked for this device (small for mobile, large for desktop). */
+  /** Which model tier was picked for this device. Open string id; matches SLM_REGISTRY entries. */
   slmTier?: {
-    id: 'small' | 'large';
+    id: string;
     modelId: string;
     approxSizeMb: number;
     displayName: string;
@@ -48,6 +51,26 @@ export interface SmartState {
   lastFinalScore?: number;
   lastModelCalls?: number;
   lastElapsedMs?: number;
+  /** True if the orchestrator hit the requested floor. False = honest fail. */
+  lastFloorMet?: boolean;
+  /** Number of search attempts the orchestrator ran. */
+  lastAttempts?: number;
+  /** The minWordsPerBoard floor that was active for the last generation. */
+  lastFloorTarget?: number;
+  /** Player-relevant words on the last generated board. */
+  lastPlayerRelevantWords?: number;
+  /** Total boards searched across all attempts ("best of K"). */
+  lastTotalCandidates?: number;
+  /** Per-run dashboard rows from the last batch of pipeline runs. */
+  lastBatch?: BatchRunRow[];
+  /** Live progress while a batch is running. */
+  batchProgress?: {
+    completed: number;
+    total: number;
+    bestSoFar: number; // playerRelevantWords
+  };
+  /** True when the side-panel dashboard is open. */
+  dashboardOpen?: boolean;
   /** True once the player has dismissed the current explanation banner. Reset on each new generation. */
   bannerDismissed: boolean;
   /** Holds noSerialize'd refs to SLM provider + MLflow tracer. */
@@ -64,3 +87,32 @@ export interface SmartState {
 }
 
 export const SmartCtx = createContext<SmartState>('smart-context');
+export const BuilderCtx = createContext<BuilderState>('builder-context');
+
+/**
+ * Per-run row in the multi-run dashboard. Serializable subset of
+ * `PipelineResult` plus the run index. Lives in `SmartState.lastBatch`
+ * after a Smart Mode reset so the dashboard can render charts + table.
+ */
+export interface BatchRunRow {
+  /** 0-based run index in the batch. */
+  idx: number;
+  pipelineId: string;
+  board: string;
+  finalScore: number;
+  playerRelevantWords: number;
+  maxWordLength: number;
+  averageWordLength: number;
+  vowelRatio: number;
+  letterEntropy: number;
+  prefixDiversity: number;
+  strategy: string;
+  candidatesEvaluated: number;
+  mutationsApplied: number;
+  modelCalls: number;
+  elapsedMs: number;
+  floorMet: boolean;
+  /** Critic rating in [0,1] when a non-deterministic critic ran; undefined otherwise. */
+  criticScore?: number;
+  explanation: string;
+}

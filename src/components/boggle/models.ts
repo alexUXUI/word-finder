@@ -49,6 +49,19 @@ export interface GameState {
   selectedChars: { index: number; char: string }[];
   language: LanguageType;
   minCharLength: number;
+  /**
+   * Hard floor on player-relevant words (≥ minCharLength) per generated
+   * board. Smart Mode retries up to 3× to satisfy this; Reset will only
+   * accept a board with at least this many words. Non-smart Reset
+   * ignores it (single-shot has no retry budget).
+   */
+  minWordsPerBoard: number;
+  /**
+   * Number of independent end-to-end pipeline runs per Reset. The runner
+   * runs the champion pipeline N times, picks the best, applies it as the
+   * live board. The dashboard surfaces all N for inspection. Default 10.
+   */
+  attemptsPerReset: number;
   currentLevel: number;
   wordsUntilNextLevel: number;
   levelStepSize: number;

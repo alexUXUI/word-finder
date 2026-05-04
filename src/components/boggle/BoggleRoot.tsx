@@ -12,6 +12,8 @@ import { Controls } from './controls/Controls';
 import { WordsPanel } from './controls/WordsPanel';
 import { BoggleBoard } from './board/Board';
 import { SmartBanner } from './intelligence/SmartBanner';
+import { PipelineLab } from './lab/PipelineLab';
+import { BatchDashboard } from './dashboard/BatchDashboard';
 import { VersionFooter } from './VersionFooter';
 import { installVersionGlobals } from '../../version';
 import { calculateCellWidth, handleFoundWord } from './logic/board';
@@ -22,8 +24,9 @@ import {
   AnswersCtx,
   WorkerCtx,
   SmartCtx,
+  BuilderCtx,
 } from './context';
-import type { SmartState } from './context';
+import type { SmartState, BuilderState } from './context';
 import BoggleWorker from './worker?worker';
 
 import type {
@@ -43,11 +46,13 @@ export interface BoggleProps {
     boardSize: number;
     language: LanguageType;
     minCharLength: number;
+    minWordsPerBoard: number;
+    attemptsPerReset: number;
   };
 }
 
 export const BoogleRoot = component$(({ data }: BoggleProps) => {
-  const { board, boardWidth, boardSize, language, minCharLength } = data;
+  const { board, boardWidth, boardSize, language, minCharLength, minWordsPerBoard, attemptsPerReset } = data;
 
   const dictionaryState = useStore<DictionaryState>({ dictionary: [] });
 
@@ -63,6 +68,8 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
     selectedChars: [],
     language: language,
     minCharLength: minCharLength ?? 0,
+    minWordsPerBoard: minWordsPerBoard ?? 150,
+    attemptsPerReset: attemptsPerReset ?? 10,
     currentLevel: 1,
     wordsUntilNextLevel: 1,
     levelStepSize: 1,
@@ -91,6 +98,17 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
     liveTokens: '',
     bannerDismissed: false,
     refs: {},
+  });
+
+  const builderState = useStore<BuilderState>({
+    open: false,
+    prompt: '',
+    isRunning: false,
+    cancelRequested: false,
+    runsCompleted: 0,
+    runsTotal: 0,
+    batchResults: [],
+    savedBoards: [],
   });
 
   useOnWindow(
@@ -152,14 +170,17 @@ export const BoogleRoot = component$(({ data }: BoggleProps) => {
   useContextProvider(AnswersCtx, answersState);
   useContextProvider(WorkerCtx, workerState);
   useContextProvider(SmartCtx, smartState);
+  useContextProvider(BuilderCtx, builderState);
 
   return (
     <div class="h-[100%] dont-scroll">
       <Controls />
       <SmartBanner />
+      <BatchDashboard />
       <UserGameStats />
       <BoggleBoard />
       <WordsPanel />
+      <PipelineLab />
       <VersionFooter />
     </div>
   );

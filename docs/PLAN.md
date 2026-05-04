@@ -1,190 +1,134 @@
-# Intelligent Board Generation — Plan
+# Word Finder build plan
 
-Working document. Future sessions resume here. Push back on anything below before code lands; once a phase ships, decisions become hard to reverse.
+> Source-of-truth for AI engineering work: [`AI_ENGINEERING.md`](./AI_ENGINEERING.md). This doc is the *phase-by-phase* execution view; AI_ENGINEERING describes pipelines, roles, algorithms, and the bench protocol.
+>
+> Companion docs:
+>
+> - [`EVAL_SUITE.md`](./EVAL_SUITE.md) v2 — the bench spec
+> - [`AGENTIC_VISION.md`](./AGENTIC_VISION.md) — long-horizon target state
+> - [`SERVER_SLM.md`](./SERVER_SLM.md) — server-side SLM cost/migration
+> - [`INTELLIGENT_GENERATION.md`](./INTELLIGENT_GENERATION.md) — current-state walkthrough (will retire when Lab UI lands)
 
-> Companion doc: [`AGENTIC_VISION.md`](./AGENTIC_VISION.md) — what the system asymptotes to once shipped (eval-as-spec, traces, feedback loop, offline prompt optimization). PLAN.md is the *build* plan; AGENTIC_VISION.md is the *target state*. The phasing here was updated to absorb the vision doc — see Phase 1 changes below.
+## Status
 
-## The real problem
+**Foundation (shipped to `main`):**
 
-The existing `randomBoard()` in `src/components/boggle/logic/board.ts` produces decent total word counts but **boards feel the same**. Word families repeat, vowel/consonant placement follows a narrow zip-pattern, and the "unpopular consonant" pick is barely random. Players notice.
+- ✅ Phase 0 — spike + baselines (vowel pool fix, dictionary scan, candidates/sec measurements)
+- ✅ Phase 1 — deterministic baseline + eval/trace foundation: `BoardStrategy` registry, `BoardScorer`, `SearchEngine` with retry loop, MLflow trace pipeline, `yarn eval` v1 gating CI
+- ✅ Phase 2 — intelligence layer: `LocalModelProvider` interface, on-device SLMs (Transformers.js), procedural orchestrator with `pick_strategy → search → explain`, MLflow CHAT_MODEL spans, dev test pages
+- ✅ Phase 2.0d — player-facing Smart Mode toggle, dismissable banner, narration log, search progress, no-spoiler explanation, version footer
 
-So the optimization target is two-dimensional, not one:
-- **maximize** unique 5+ letter words on each board
-- **maximize** distance from recent boards (diversity)
+**On `feat/server-side-slm` (this branch, pre-merge):**
 
-## Where intelligence actually helps
+- ✅ Mobile compatibility — UA-based device-tier picker, `/api/llm` Pages Function + Workers AI, 5-tier model registry with localStorage override
+- ✅ Player Min Words input — drives `goal.minPlayerRelevantWords`, search budget scales with target, honest "floor not met" warning, "best of K" tracking
+- ✅ Board Builder side panel — prompt → batch runs → favorites (will be replaced by the Pipeline Lab in A.5)
 
-We're going to push back on the framing of "an SLM generates the board." Search through a discrete space (pick 25 letters that maximize a score) is what deterministic algorithms — hill climbing, simulated annealing, evolutionary search — exist for. SLMs can't beat them at search.
+**The above is the foundation. The actual AI engineering work begins now.**
 
-Where SLMs **do** add value:
+## Phase A — pipelines, algorithms, benchmarks (this branch)
 
-| Task | Best handled by |
-| --- | --- |
-| Search through millions of candidate boards | Deterministic algorithm (hill climb / annealing / evolutionary) |
-| Score a board | Pure function |
-| Decide *which strategy* to try given a goal | **SLM** (planning) |
-| Translate fuzzy preferences ("rare-letter chaotic board") into structured params | **SLM** (NL → struct) |
-| "Should I accept this candidate or keep searching?" | Tiny classifier or rule (cheap) |
-| Explain *why* this board was chosen | **SLM** (language) |
-| Self-tune which strategy/params worked | Recipe memory + bandit, not the model |
+This phase reframes board generation from *"a procedural orchestrator with an SLM bolted on"* to *"a benchmarked portfolio of composable pipelines."* See [`AI_ENGINEERING.md`](./AI_ENGINEERING.md) §1–6 for the rationale.
 
-The SLM is the **conductor**, not the orchestra.
+| Step | Deliverables | Acceptance |
+|---|---|---|
+| **A.0 — Vision docs** | `AI_ENGINEERING.md`, `EVAL_SUITE.md` v2, this PLAN rewrite | Committed |
+| **A.1 — Abstractions** | `intelligence/roles/` (7 role interfaces), `intelligence/pipeline/` (Pipeline type, runner, registry). No behavior change yet. | Build green; existing UI flow works through the new runner. |
+| **A.2 — Refactor** | `pipelines/p00-deterministic.ts` + `pipelines/p01-smart-router.ts`. The procedural orchestrator becomes two configs over the new role interfaces. | Player Smart Mode produces identical traces (semantically) to pre-refactor. `yarn bench --pipeline=p01` matches pre-refactor numbers. |
+| **A.3 — Algorithm A: SLM-mutator** | `roles/mutator/slm-swap.ts` + `roles/mutator/random-swap.ts` + `pipelines/p02-slm-mutator.ts` + versioned mutator prompt | `p02` either dominates `p01` on `playerRelevantWords` at matched compute, OR the bench tells us it doesn't and we know why. |
+| **A.4 — Bench infra** | `evals/run-bench.ts` + `leaderboard.ts` (paired-bootstrap CIs, Pareto plot) + `goals.yaml` v2 starter set + `yarn bench` script + CI gate | `yarn bench` produces a leaderboard. PR comment shows delta. |
+| **A.5 — Pipeline Lab UI** | `lab/PipelineLab.tsx` replaces `builder/BoardBuilder.tsx`. Pipeline cards, side-by-side Bench tab, composer (read-only first cut), champion indicator, trace links. | Lab loads; pipeline cards show real eval scores; Bench tab runs 2 pipelines on a goal and shows distribution overlay + per-metric CI. |
+| **A.6 — Wire to player** | Smart Mode in `Controls.tsx` runs the current champion (`pipelineRegistry.champion()`) instead of constructing a procedural orchestrator. | Player UI behaves the same with `champion=p01`; switching champion to `p02` changes behavior in observably-better ways. |
 
-## Architecture (three layers, hard boundaries)
+## Phase B — Critic & calibration
 
-```
-┌──────────────────────────────────────────────┐
-│  Layer 3 — Intelligence (SLM orchestrator)   │
-│  parse preferences · pick strategy · reflect │
-└──────────────────┬───────────────────────────┘
-                   │ tool calls (typed)
-┌──────────────────▼───────────────────────────┐
-│  Layer 2 — Search engine                     │
-│  budget · diversity tracking · candidate pool│
-│  hill climb / annealing / evolutionary       │
-└──────────────────┬───────────────────────────┘
-                   │ pure functions
-┌──────────────────▼───────────────────────────┐
-│  Layer 1 — Tools (deterministic, pure)       │
-│  generate · solve · score · mutate · validate│
-└──────────────────────────────────────────────┘
+| Step | Deliverables |
+|---|---|
+| **B.1 — SLM judge** | `roles/critic/slm-judge.ts` — rates board-vs-goal-description on 0..1 |
+| **B.2 — Player-rated set** | Player Feedback tab in Lab. Thumbs up/down on generated boards → `player-rated.parquet`. Internal rating-session script for held-out boards. |
+| **B.3 — Calibration metrics** | `bench` reports judge ECE, Spearman, agreement vs `player-rated`. Judge demotion when below threshold. |
+| **B.4 — Critic-and-generator pipeline** | `pipelines/p04-critic-rerank.ts` — generator emits 10, judge reranks, take top. Bench against `p01`. |
 
-Cross-cutting: GenerationTracer (console / in-memory / MLflow adapter)
-Cross-cutting: RecipeStore (IndexedDB) — what worked for which goals
-```
+## Phase C — Algorithm B: Evolutionary search with SLM crossover
 
-**Boundary rule**: Layer 1 has *no* model dependency, ever. Layer 2 has *no* model dependency either — pure search. Only Layer 3 talks to the SLM. Keeps testing cheap, replacement easy, and CI deterministic without model downloads.
+| Step | Deliverables |
+|---|---|
+| **C.1 — Crossover role** | `roles/mutator/slm-crossover.ts` — operates on parent pair, returns child boards |
+| **C.2 — Evolutionary pipeline** | `pipelines/p03-evolutionary.ts` — pop=50, top-K, crossover + mutator, N generations |
+| **C.3 — Bench against matched compute** | Pareto question: does `p03` dominate `p02` on cost-vs-quality? |
 
-Everything Layer 2+ runs in a **Web Worker** so the UI never blocks.
+## Phase D — Algorithm G: SLM-parsed prompt → structured goal
 
-## Phases
+| Step | Deliverables |
+|---|---|
+| **D.1 — Parser role** | `roles/prompt-parser/slm-parser.ts` — free-form NL → structured `BoardGenerationGoal` fields |
+| **D.2 — Eval set** | `evals/prompts.yaml` — 20 prompts with ground-truth goal fields. F1 reported. |
+| **D.3 — Wire into pipelines** | `p05-parsed-prompt-mutator.ts` — chains D.1 in front of A. Lab Builder prompt becomes functional. |
 
-Incremental shipping. Each phase ends in a merge-ready PR.
+## Phase E — Cascade routing & self-consistency
 
-### Phase 0 — Spike & measure (1 session, in flight)
+| Step | Deliverables |
+|---|---|
+| **E.1 — Cascade router** | `roles/strategy-router/cascade.ts` — try 135M → escalate to 360M → escalate to 0.5B based on confidence |
+| **E.2 — Self-consistency** | `roles/strategy-router/self-consistent.ts` — N votes at T=0.7, majority |
+| **E.3 — Bench all combinations** | Cost vs quality. Cascade at 135M baseline should match 0.5B-only quality at 1/4 the cost. |
 
-Cheap to do, expensive to skip. Numbers shape every architecture decision.
+## Phase F — Optimizer (DSPy / TextGrad)
 
-**Deliverables**
-- Benchmark current `solve()` candidates/sec on a 5×5 with the production English dictionary.
-- Distribution of total words and player-relevant 5+ letter words across 100 random boards.
-- Pairwise board similarity (Jaccard on word sets, Levenshtein on flat string) to set the diversity baseline.
-- Research into browser-local model options (WebLLM, Transformers.js, ONNX). Document model sizes, inference latency expectations, WebGPU coverage.
-- `docs/spike-findings.md` with concrete recommendations for Phase 1 budget and Phase 2 model choice.
+| Step | Deliverables |
+|---|---|
+| **F.1 — Trace export** | MLflow → DSPy-compatible (prompt, response, score) tuples |
+| **F.2 — Prompt optimization runner** | `tools/optimizer/optimize.py`. Takes (pipeline, eval objective), evolves prompts, writes versioned prompt artifacts. |
+| **F.3 — Lab integration** | Optimizer tab. Watch prompts evolve. Promote optimized prompts behind a flag. CI bench validates the promotion. |
 
-**Acceptance**: numbers in hand, model candidate selected, draft PR opened so user can react before Phase 1 commits to a budget.
+## Phase G — Distillation
 
-### Phase 1 — Deterministic baseline + eval/trace foundation (5–7 sessions)
+| Step | Deliverables |
+|---|---|
+| **G.1 — Trace → training data** | Pipeline output → fine-tune dataset for any role |
+| **G.2 — Tiny role-specific replacements** | Distill `slm-router`, `slm-mutator`, `slm-judge` into 135M task-specific models. Drop production cost / latency. |
+| **G.3 — Promotion** | Distilled models replace heavier ones once their bench delta is within tolerance at lower cost. |
 
-This alone fixes ~70–80% of the diversity problem **and** establishes the measurability that every later phase depends on. Per AGENTIC_VISION.md, eval/trace cannot be deferred — without them, every later change is guesswork.
+## Phase H — MCTS over partial boards (research)
 
-**Deterministic deliverables**
-- `BoardStrategy` interface; refactor existing generator into one named strategy.
-- New strategies:
-  - `frequency-weighted` — sample from English letter frequencies, parameterized.
-  - `n-gram` — bias toward common bigram/trigram adjacencies.
-  - `seed-word` — embed selected dictionary words on legal Boggle paths, fill rest.
-  - `dice-shuffle` — Boggle-style fixed dice faces, shuffled positions.
-- **Fix the english vowel pool** — the Phase 0 finding. Replace `['e','e','e','e','e','a','a','a','i','i','s','s']` with frequency-weighted real vowels (a/e/i/o/u). One-line bug fix that solves most of the perceived sameness.
-- `BoardScorer` returning multi-dimensional score (totalWords, playableWords, wordsByLength, averageWordLength, maxWordLength, uniqueLetters, vowelRatio, vowelInventoryEntropy, prefixDiversity, similarityToRecent, finalScore).
-- `SearchEngine` running candidates with budget (max attempts, max ms), tracking best, applying diversity penalty against recent boards.
-- Web Worker hosting the engine.
-- Fix trie singleton bug in `solve()` (allocates fresh trie per call or accepts a pre-built one).
+| Step | Deliverables |
+|---|---|
+| **H.1 — Letter-policy role** | `roles/candidate-generator/slm-letter-policy.ts` — SLM proposes next letter given partial board + goal |
+| **H.2 — MCTS pipeline** | `pipelines/p06-mcts.ts` — UCB on rollout quality |
+| **H.3 — Bench cost/quality** | Likely high quality at 10×+ compute. Ship behind a flag; not a default champion. |
 
-**Eval & trace deliverables (new — promoted from old Phase 5)**
-- `docs/EVAL_SUITE.md` v1 with 3–4 starter goals + target metrics (default-balanced, rare-letter-chaotic, long-word-heavy, classic).
-- `yarn eval` script that runs each goal N times against the deterministic search engine, computes metrics, asserts thresholds, writes a structured report. Failing thresholds block merges.
-- `src/intelligence/trace/types.ts` — final `GenerationTrace` and `Span` schemas (per AGENTIC_VISION.md §4 Trace Surface).
-- `GenerationTracer` interface with `console` and `in-memory` adapters wired into the search engine. Every generation emits a trace from day one.
-- Tests across all of the above.
+## Phase I — Self-hosted Container (per `SERVER_SLM.md`)
 
-**Acceptance**: eval suite passes (mean 5+ words ≥ 100, p10 ≥ 50, vowel-inventory entropy >> 0). Every generation produces a parseable trace. No regressions in existing unit / e2e suites.
+| Step | Deliverables |
+|---|---|
+| **I.1 — Container** | Cloudflare Container with `llama.cpp` + Llama-3.1-8B-q4 |
+| **I.2 — Pages Function flag** | `LLM_UPSTREAM=container` flips `/api/llm` to the container; `workers-ai` keeps the existing path |
+| **I.3 — Cost regression test** | Bench reports cost-per-board for both upstreams; we choose based on traffic. |
 
-### Phase 2 — Intelligence layer (3–5 sessions)
+## Engineering rules
 
-**Deliverables**
-- `LocalModelProvider` interface (`generate`, `supportsJson`, `supportsToolCalling`, etc.).
-- `MockProvider` — deterministic, used by CI. Scriptable to simulate "switch strategy after low score", "stop when threshold met", "return malformed tool call".
-- `WebLLMProvider` (or whichever Phase 0 picks) — real on-device. Lazy-loaded, with download progress UI.
-- Tool registry + arg validator. Orchestrator only calls registered tools.
-- Orchestrator loop: summarize state → ask model for next action → validate → execute tool → score → continue until budget / threshold.
-- Three modes: `fast` (few iterations), `balanced` (default), `deep` (many iterations).
+1. **Pipelines are config, not procedure.** Adding an algorithm = new TS config (+ maybe new role implementation), never a new procedural orchestrator.
+2. **Layer boundaries are sacred.** `generation/` (Layer 1) and `search` (Layer 2) have no model dependency. Models live in roles; pipelines bind them.
+3. **Bench-or-die.** No pipeline change merges without a bench run + leaderboard delta in the PR.
+4. **Statistical wins, not eyeball wins.** Paired-bootstrap CIs, Pareto frontier, multi-metric. Single-board "looks better" is not evidence.
+5. **One champion at a time** in production. Challengers ride along in shadow mode (logged but not surfaced) until promoted.
+6. **Trace everything.** Every model call, every mutation, every accept/reject is a span. Replay-with-different-prompt is the inner loop.
+7. **No spoilers in narrator output.** The hard rule applies to every narrator implementation.
+8. **CI uses MockProvider.** Real model calls are gated behind `BENCH_USE_REAL_MODEL=1` for nightly / on-demand.
 
-**Acceptance**: orchestrator drives strategy selection on top of Phase 1; CI passes with mock provider; real model produces explanations that pass eyeball review.
-
-### Phase 3 — User preferences (2–3 sessions)
-
-**Deliverables**
-- Preference UI (preferred/required/avoided letters, style, difficulty, novelty).
-- NL preference description → structured `BoardGenerationGoal` (a model task).
-- Goal threaded through orchestrator → search engine → strategy params.
-- e2e: "I want a chaotic rare-letter board with 8+ letter words" actually produces one.
-
-### Phase 4 — Recipe memory (2 sessions)
-
-**Deliverables**
-- IndexedDB-backed `RecipeStore` keyed on goal-signature.
-- Lookup biases new generation toward params that worked for similar past goals.
-- Novelty penalty against recent recipes to avoid re-using the exact same recipe twice in a row.
-
-### Phase 5 — Trace pipeline polish (1–2 sessions)
-
-The tracer skeleton ships in Phase 1. Phase 5 is the production sink + dashboards.
-
-**Deliverables**
-- `mlflow` adapter — small Cloudflare Worker proxy that batches OTel-shaped span exports and forwards to an MLflow Tracking Server (or any OTel collector you point at).
-- IndexedDB sink for offline replay.
-- Trace viewer in the dev panel; per-generation drill-down.
-- Sampling policy (10% for non-anomaly traces, 100% for evals and errors).
-
-### Phase 6 — Offline optimization (3–5 sessions)
-
-The capstone of the self-improving loop. R&D-side, not browser-side.
-
-**Deliverables**
-- `tools/optimizer/` directory (or sister Python repo if DSPy-based).
-- `yarn optimize:prompts` — prompt-version search over the labeled `(trace, outcome)` dataset, against the eval set. Outputs new versioned prompt artifacts + a comparison report.
-- `yarn optimize:strategies` — tunes strategy weights and budget allocations against the eval set.
-- `yarn benchmark:model <model-id>` — sweeps a candidate model against the eval set; reports size/latency/quality.
-- CI step that fails when a promoted prompt/model regresses on the weighted eval metric.
-
-### Phase 7 — Polish (open-ended)
-
-- "Why this board?" panel for players.
-- Generation diagnostics in dev mode.
-- Production telemetry on diversity score distribution.
-- Cohort analysis comparing eval-predicted scores vs explicit player feedback.
-
-## Risks tracked openly
+## Risks
 
 | Risk | Why it matters | Mitigation |
-| --- | --- | --- |
-| WebLLM models are 500MB–1.5GB | Big download for a Boggle game; mobile data plans | Phase 0 measures real perceived load time. Lazy-load only when "advanced generation" is opened. Server-side fallback path designed in from the start. |
-| WebGPU coverage uneven | Mobile Safari, older devices | Graceful no-WebGPU path: smaller ONNX classifier, or server inference, or skip the intelligence layer and use deterministic-only mode. |
-| Solver throughput | If `solve()` does <10 candidates/sec, search budget shrinks | Phase 0 measures. If slow, profile and optimize before Phase 1 search engine. Candidate optimization: WASM solver (already built but unused). |
-| Diversity metric definition | Many valid choices | Phase 0 picks one and documents the choice. Default: Jaccard on player-relevant word set, weighted by recency. |
-| MLflow in browser doesn't exist | Promised in original draft; not feasible | Tracer is an *abstraction*. MLflow adapter is a Cloudflare Worker proxy. Optional, doesn't gate gameplay. |
-| Real-model non-determinism in tests | Flaky CI | `MockProvider` is the default for CI. Real model is opt-in for dev / e2e smoke. |
-| Self-optimizing prompts | Easy to over-engineer | Deferred. Recipes give 80% of the value. Re-evaluate after Phase 4. |
-| Trie singleton bug in `solve()` | Will leak state across hundreds of candidate calls | Fix in Phase 1 (allocate fresh trie or accept pre-built). |
+|---|---|---|
+| Bench latency | Running 9 pipelines × 25 goals × 20 boards = 4500 generations × 5s = ~6h | Tiered runs: `quick` (3 goals × 5 boards), `full` (nightly), `shadow` (prod traffic). CI uses quick. |
+| SLM judge misalignment | Subjective metric the judge alone defines is meaningless | `player-rated.parquet` is the ground truth; judge ECE / Spearman gated. |
+| Pipeline explosion | 100 configs become unmanageable | Hash-keyed registry; old configs retire when dominated for 3 consecutive bench runs. |
+| Refactor regressions | A.2 must keep current behavior | A.2 acceptance is "p01 matches pre-refactor numbers within noise." |
+| MCTS / evolutionary cost | Far higher per-board cost | Pareto frontier shows them; champion picker chooses based on policy (cost-aware). |
 
-## Engineering rules for this work
+## Open questions
 
-1. Branch: `feat/intelligent-board-generation`. PR per phase, draft until phase acceptance criteria met.
-2. Layer 1 stays pure. Layer 2 stays model-free. Only Layer 3 talks to SLMs.
-3. CI uses `MockProvider`. Never gate CI on a real model download.
-4. Web Worker hosts Layer 2+ so the UI never blocks.
-5. Playwright MCP validates each phase's user-visible behavior.
-6. Tracer instrumented from Phase 1 forward (console adapter is fine in early phases).
-7. Each phase ships behind a feature flag or "advanced generation" toggle until the whole system is good enough to be the default.
-8. **Baseline-first.** No PR that touches generation, scoring, search, prompts, models, or parameters merges without a versioned baseline before *and* after the change, with the delta in the PR description. Convention and metrics live in [`BASELINES.md`](./BASELINES.md). The current pre-Phase-1 baseline is `docs/baselines/2026-05-03T19-12-37-790Z__current-generator-pre-phase1.json` — beat it on the metrics that matter, don't regress the others.
-
-## Open questions to resolve in Phase 0
-
-1. **Solver throughput**: candidates/sec on a 5×5 with the production dict?
-2. **Current diversity baseline**: pairwise Jaccard mean / std over 100 boards?
-3. **Smallest WebLLM model with reliable JSON / tool calling**?
-4. **WebGPU support detection**: how to detect early and route to fallback?
-5. **Dictionary loading**: cache strategy for offline / repeat visits?
-
-Phase 0 fills these in. Phase 1 design decisions defer until then.
+1. **Where to store `player-rated.parquet`** — Cloudflare R2? GitHub LFS? Defer; v0 in IndexedDB.
+2. **Bench compute budget on CI** — quick suite must be <2 min; figure out what fits.
+3. **Lab UI persistence** — pipeline configs as TS files (refactorable) vs JSON in localStorage (player-editable). Probably both, with TS as canonical.
+4. **Shadow mode protocol** — how to log challenger results without affecting the player. Log to MLflow under `challenger_id` tag; surface in Lab.

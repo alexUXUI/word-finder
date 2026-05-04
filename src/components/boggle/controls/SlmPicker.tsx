@@ -55,7 +55,7 @@ export const SlmPicker = component$<SlmPickerProps>(({ disabled, onPick$ }) => {
       <option value="auto">Auto (User-Agent)</option>
       {(options.value ?? []).map((m) => (
         <option key={m.id} value={m.id}>
-          {m.displayName} (~{m.approxSizeMb} MB · {m.recommendation})
+          {`${m.displayName} (~${m.approxSizeMb} MB · ${m.recommendation})`}
         </option>
       ))}
     </select>

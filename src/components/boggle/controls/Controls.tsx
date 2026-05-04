@@ -80,21 +80,27 @@ export const Controls = component$(() => {
     smart.modelLoadProgress = 0;
     smart.modelLoadError = undefined;
     try {
-      const { TransformersJsProvider, selectSlmTier } = await import(
-        '../intelligence/local-model'
-      );
+      const {
+        TransformersJsProvider,
+        CloudflareServerProvider,
+        selectSlmModel,
+        isServerSide,
+      } = await import('../intelligence/local-model');
       const { MLflowTracer, NoopTracer } = await import('../generation/trace');
-      const tier = selectSlmTier();
+      const sel = selectSlmModel();
+      const tier = sel.model;
       smart.slmTier = {
         id: tier.id,
         modelId: tier.modelId,
         approxSizeMb: tier.approxSizeMb,
         displayName: tier.displayName,
-        reason: tier.reason,
+        reason: sel.reason,
       };
-      const provider = new TransformersJsProvider({
-        modelId: tier.modelId,
-      });
+      // Server-side tier doesn't load anything in the browser; instantiate
+      // the proxy provider and skip straight to ready.
+      const provider = isServerSide(tier)
+        ? new CloudflareServerProvider({ modelId: tier.modelId })
+        : new TransformersJsProvider({ modelId: tier.modelId });
       smart.refs.provider = noSerialize(provider);
 
       // Only emit traces to MLflow when running on a localhost dev box.
@@ -116,6 +122,8 @@ export const Controls = component$(() => {
             })
           : NoopTracer
       );
+      // CloudflareServerProvider.load() is a no-op; TransformersJsProvider
+      // streams real progress.
       await provider.load((p) => {
         if (p.total && p.loaded) {
           smart.modelLoadProgress = (p.loaded / p.total) * 100;
@@ -163,9 +171,21 @@ export const Controls = component$(() => {
       smart.liveTokens = '';
       smart.searchProgress = undefined;
       try {
-        const { Orchestrator } = await import(
-          '../intelligence/orchestrator'
+        const { runPipelineBatch, pickBest } = await import(
+          '../intelligence/pipeline/batch-runner'
         );
+        const { initializePipelines } = await import(
+          '../intelligence/pipelines'
+        );
+        const { getChampion, getPipeline } = await import(
+          '../intelligence/pipeline/registry'
+        );
+        initializePipelines();
+        const champion =
+          getChampion() ?? getPipeline('p01-smart-router');
+        if (!champion) {
+          throw new Error('No champion pipeline registered');
+        }
         const provider = smart.refs.provider as unknown as
           | import('../intelligence/local-model').LocalModelProvider
           | undefined;
@@ -179,57 +199,119 @@ export const Controls = component$(() => {
         if (!dict.length) {
           throw new Error('Dictionary not loaded yet');
         }
-        const orchestrator = new Orchestrator({
-          model: provider,
-          tracer,
-          tools: { availableStrategies: ['frequency-weighted'] },
-          budget: { maxCandidates: 200, maxSearchMs: 15000 },
-          callbacks: {
-            onNarrate: (line) => {
-              smart.narration = [...smart.narration, line];
-              // New step → reset the live-token stream so the next model
-              // call starts with a clean slate. Keeps narration readable.
+        smart.generationStage = 'generating';
+
+        // Multi-run: champion pipeline runs N times. Best becomes the live
+        // board; all N populate the dashboard. Live progress fires after
+        // each completed run.
+        const totalRuns = Math.max(1, gameState.attemptsPerReset || 10);
+        smart.batchProgress = { completed: 0, total: totalRuns, bestSoFar: 0 };
+        smart.lastBatch = [];
+
+        const allResults = await runPipelineBatch(
+          champion,
+          {
+            goal: {
+              size: boardState.boardSize,
+              minWordLength: gameState.minCharLength,
+              language: gameState.language,
+              style: 'long-word-heavy',
+              difficulty: 'medium',
+              minPlayerRelevantWords: gameState.minWordsPerBoard,
+            },
+            dictionary: dict,
+            model: provider,
+            tracer,
+            callbacks: {
+              onNarrate: (line) => {
+                smart.narration = [...smart.narration, line];
+                smart.liveTokens = '';
+                if (line.startsWith('🤔') || line.startsWith('🔍')) {
+                  smart.generationStage = line;
+                } else if (line.startsWith('💬')) {
+                  smart.generationStage = 'explaining';
+                }
+              },
+              onTokenStream: (_chunk, accumulator) => {
+                smart.liveTokens = accumulator;
+              },
+              onSearchProgress: (info) => {
+                smart.searchProgress = {
+                  index: info.index,
+                  total: info.total,
+                  bestScore: info.bestScore,
+                  playerRelevantWords: info.playerRelevantWords,
+                };
+              },
+            },
+          },
+          {
+            runs: totalRuns,
+            onRunComplete: (r, idx, _all) => {
+              // Reset narration between runs so the banner shows the
+              // CURRENT run only — without this, 10 runs × ~6 lines each
+              // pile up and shove the board offscreen.
+              smart.narration = [];
               smart.liveTokens = '';
-              if (line.startsWith('🤔') || line.startsWith('🔍')) {
-                smart.generationStage = line;
-              } else if (line.startsWith('💬')) {
-                smart.generationStage = 'explaining';
-              }
-            },
-            onTokenStream: (_chunk, accumulator) => {
-              smart.liveTokens = accumulator;
-            },
-            onSearchProgress: (info) => {
-              smart.searchProgress = {
-                index: info.index,
-                total: info.total,
-                bestScore: info.bestScore,
-                playerRelevantWords: info.playerRelevantWords,
+              smart.searchProgress = undefined;
+              smart.lastBatch = [
+                ...(smart.lastBatch ?? []),
+                {
+                  idx,
+                  pipelineId: champion.id,
+                  board: r.board,
+                  finalScore: r.score.finalScore,
+                  playerRelevantWords: r.score.playerRelevantWords,
+                  maxWordLength: r.score.maxWordLength,
+                  averageWordLength: r.score.averageWordLength,
+                  vowelRatio: r.score.vowelRatio,
+                  letterEntropy: r.score.letterEntropy,
+                  prefixDiversity: r.score.prefixDiversity,
+                  strategy: r.strategy,
+                  candidatesEvaluated: r.candidatesEvaluated,
+                  mutationsApplied: r.mutationsApplied,
+                  modelCalls: r.modelCalls,
+                  elapsedMs: r.elapsedMs,
+                  floorMet: r.floorMet,
+                  criticScore: r.criticScore,
+                  explanation: r.explanation,
+                },
+              ];
+              smart.batchProgress = {
+                completed: idx + 1,
+                total: totalRuns,
+                bestSoFar: Math.max(
+                  smart.batchProgress?.bestSoFar ?? 0,
+                  r.score.playerRelevantWords
+                ),
               };
             },
-          },
-        });
-        smart.generationStage = 'generating';
-        const result = await orchestrator.generateBoard(
-          {
-            size: boardState.boardSize,
-            minWordLength: gameState.minCharLength,
-            style: 'long-word-heavy',
-            difficulty: 'medium',
-            minPlayerRelevantWords: 150,
-            maxAttempts: 3,
-          },
-          dict
+          }
         );
+
+        const result = pickBest(allResults);
         boardState.chars = [...result.board];
         answersState.answers = [];
         smart.lastExplanation = result.explanation;
-        smart.lastStrategy = result.strategyChosen;
+        smart.lastStrategy = result.strategy;
         smart.lastFinalScore = result.score.finalScore;
-        smart.lastModelCalls = result.modelCalls;
-        smart.lastElapsedMs = result.elapsedMs;
+        smart.lastModelCalls = allResults.reduce((s, r) => s + r.modelCalls, 0);
+        smart.lastElapsedMs = allResults.reduce((s, r) => s + r.elapsedMs, 0);
+        smart.lastFloorMet = result.floorMet;
+        smart.lastAttempts = allResults.length;
+        smart.lastFloorTarget = gameState.minWordsPerBoard;
+        smart.lastPlayerRelevantWords = result.score.playerRelevantWords;
+        smart.lastTotalCandidates = allResults.reduce(
+          (s, r) => s + r.candidatesEvaluated,
+          0
+        );
         smart.generationStatus = 'complete';
         smart.generationStage = undefined;
+        smart.batchProgress = undefined;
+        // Don't auto-pop the dashboard — the right-edge "📊 Stats" tab is
+        // always visible after a batch completes; player opens it when
+        // they want to. Auto-opening would cover the freshly-loaded
+        // board the moment they hit Reset.
         worker.mod?.postMessage({
           language: gameState.language,
           board: boardState.chars,
@@ -306,6 +388,24 @@ export const Controls = component$(() => {
   const handleChangeMinCharLength = $(
     (e: QwikChangeEvent<HTMLInputElement>) => {
       gameState.minCharLength = e.target.valueAsNumber;
+    }
+  );
+
+  const handleChangeMinWordsPerBoard = $(
+    (e: QwikChangeEvent<HTMLInputElement>) => {
+      const v = e.target.valueAsNumber;
+      // Defensive: clamp to a sane range. Negative or NaN means "no floor".
+      gameState.minWordsPerBoard = Number.isFinite(v) && v >= 0 ? v : 0;
+    }
+  );
+
+  const handleChangeAttemptsPerReset = $(
+    (e: QwikChangeEvent<HTMLInputElement>) => {
+      const v = e.target.valueAsNumber;
+      // Range [1, 50] — too many runs and Reset takes minutes; too few
+      // defeats the dashboard purpose.
+      const clamped = Number.isFinite(v) ? Math.max(1, Math.min(50, v)) : 10;
+      gameState.attemptsPerReset = clamped;
     }
   );
 
@@ -396,6 +496,45 @@ export const Controls = component$(() => {
                 type="number"
                 onChange$={handleChangeMinCharLength}
                 value={gameState.minCharLength}
+                class="pl-2 rounded-md w-[70px] h-[40px] border-2 border-blue-900"
+              />
+            </div>
+            <div class="flex flex-col my-[10px]">
+              <label
+                for="min-words-per-board"
+                class="text-[14px]"
+                title="Smart Mode hard floor: minimum number of player-relevant words a generated board must contain. Smart retries up to 3× to satisfy."
+              >
+                Min Words
+              </label>
+              <input
+                id="min-words-per-board"
+                data-testid="min-words-input"
+                type="number"
+                min="0"
+                step="10"
+                onChange$={handleChangeMinWordsPerBoard}
+                value={gameState.minWordsPerBoard}
+                class="pl-2 rounded-md w-[80px] h-[40px] border-2 border-blue-900"
+              />
+            </div>
+            <div class="flex flex-col my-[10px]">
+              <label
+                for="attempts-per-reset"
+                class="text-[14px]"
+                title="Number of independent pipeline runs per Reset. The dashboard shows all runs ranked; the player gets the best."
+              >
+                Attempts
+              </label>
+              <input
+                id="attempts-per-reset"
+                data-testid="attempts-per-reset-input"
+                type="number"
+                min="1"
+                max="50"
+                step="1"
+                onChange$={handleChangeAttemptsPerReset}
+                value={gameState.attemptsPerReset}
                 class="pl-2 rounded-md w-[70px] h-[40px] border-2 border-blue-900"
               />
             </div>

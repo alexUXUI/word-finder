@@ -26,7 +26,18 @@ body {
 }
 
 body {
+  /*
+   * Soft pastel gradient — no glass effect is visible against a dead-flat
+   * background, so we give the panels something to blur. The gradient is
+   * subtle enough not to compete with content but adds enough variation
+   * that .glass surfaces read as actually frosted (not just translucent).
+   */
   background-color: #fafafa;
+  background-image:
+    radial-gradient(circle at 20% 10%, rgba(186, 230, 253, 0.45), transparent 45%),
+    radial-gradient(circle at 80% 90%, rgba(207, 250, 254, 0.4), transparent 50%),
+    radial-gradient(circle at 60% 50%, rgba(254, 243, 199, 0.25), transparent 60%);
+  background-attachment: fixed;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     sans-serif;
 }
@@ -184,4 +195,262 @@ a.mindblow:hover {
   background: rgba(255, 255, 255, 0.33);
   backdrop-filter: blur(19px);
   -webkit-backdrop-filter: blur(14px);
+}
+
+/*
+ * Side-panel shell. Same translucency as `.glass` (the Controls panel
+ * the player references) — 33% white tint + 9px blur — so the visual
+ * language is consistent across every floating surface in the app.
+ * Adds only what panels need: left edge for separation, soft drop
+ * shadow to lift off the page when slid open.
+ */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.33);
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+  border-left: 2px solid #dfdfdf;
+  box-shadow: -8px 0 24px rgba(30, 58, 138, 0.08);
+}
+
+/*
+ * Inner cards within a glass panel. Lighter frost, subtle border, soft
+ * inner gloss. Match the inset-shadow letter-cube look without being
+ * heavy.
+ */
+.glass-card {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 2px solid #1e3a8a30;
+  border-radius: 8px;
+}
+
+.glass-card-accent {
+  background: linear-gradient(
+    135deg,
+    rgba(207, 250, 254, 0.7),
+    rgba(255, 255, 255, 0.6)
+  );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(8, 145, 178, 0.35);
+  box-shadow:
+    0 1px 3px rgba(8, 145, 178, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-radius: 10px;
+}
+
+/*
+ * Right-edge vertical-text toggle ("🧪 Pipeline Lab", "📊 Stats").
+ * Tab-shaped, glass-frosted, glow on hover.
+ */
+.glass-tab {
+  position: fixed;
+  right: 0;
+  z-index: 100;
+  background: rgba(37, 99, 235, 0.92);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-right: 0;
+  border-radius: 10px 0 0 10px;
+  padding: 12px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.04em;
+  box-shadow:
+    -2px 2px 8px rgba(30, 58, 138, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+
+.glass-tab:hover {
+  transform: translateX(-2px);
+  box-shadow:
+    -4px 2px 12px rgba(30, 58, 138, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+/*
+ * Translucent table chrome — frosted header, hover-glow rows. Use inside
+ * a glass-card to keep nested layers visually distinct.
+ */
+.glass-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 11px;
+}
+
+.glass-table thead {
+  background: rgba(30, 58, 138, 0.08);
+  backdrop-filter: blur(4px);
+}
+
+.glass-table th {
+  padding: 6px 8px;
+  text-align: right;
+  font-weight: 600;
+  color: #1e3a8a;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  border-bottom: 1px solid rgba(30, 58, 138, 0.12);
+}
+
+.glass-table th:first-child,
+.glass-table td:first-child {
+  text-align: center;
+}
+
+.glass-table td {
+  padding: 6px 8px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.glass-table tbody tr {
+  background: rgba(255, 255, 255, 0.25);
+  transition: background 0.12s;
+}
+
+.glass-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.glass-table tbody tr[data-is-best='true'] {
+  background: linear-gradient(
+    90deg,
+    rgba(254, 243, 199, 0.85),
+    rgba(254, 243, 199, 0.55)
+  );
+  font-weight: 600;
+}
+
+/*
+ * Skeu-style action buttons — same family as the toggle buttons in the
+ * top toolbar. Soft shadow, white face, blue ring.
+ */
+.glass-btn {
+  background: rgba(255, 255, 255, 0.7);
+  border: 2px solid #1e3a8a;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1e3a8a;
+  cursor: pointer;
+  box-shadow:
+    0 1px 2px rgba(30, 58, 138, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  transition: background 0.12s, box-shadow 0.12s;
+}
+
+.glass-btn:hover:not(:disabled) {
+  background: rgba(191, 219, 254, 0.7);
+}
+
+.glass-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.glass-btn-icon {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 14px;
+  border-radius: 4px;
+  transition: background 0.12s, transform 0.12s;
+}
+
+.glass-btn-icon:hover:not(:disabled) {
+  background: rgba(191, 219, 254, 0.6);
+  transform: scale(1.1);
+}
+
+.glass-btn-icon:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.glass-btn-promote {
+  background: rgba(255, 255, 255, 0.7);
+  border: 2px solid #0891b2;
+  color: #0891b2;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow:
+    0 1px 2px rgba(8, 145, 178, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.glass-btn-promote:hover {
+  background: rgba(207, 250, 254, 0.85);
+}
+
+/*
+ * Embedded SVG chart shell — translucent so chart shapes pop against
+ * the frosted-glass panel.
+ */
+.glass-chart {
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.glass-pill {
+  display: inline-block;
+  background: rgba(8, 145, 178, 0.92);
+  color: white;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  font-weight: 600;
+  box-shadow:
+    0 1px 2px rgba(8, 145, 178, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.glass-banner {
+  background: linear-gradient(
+    135deg,
+    rgba(236, 254, 255, 0.85),
+    rgba(255, 255, 255, 0.55)
+  );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-left: 4px solid #0891b2;
+  border-radius: 0 8px 8px 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  box-shadow:
+    0 1px 3px rgba(8, 145, 178, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.glass-banner-warn {
+  background: linear-gradient(
+    135deg,
+    rgba(254, 243, 199, 0.85),
+    rgba(255, 255, 255, 0.55)
+  );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-left: 4px solid #f59e0b;
+  border-radius: 0 8px 8px 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  box-shadow:
+    0 1px 3px rgba(245, 158, 11, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }

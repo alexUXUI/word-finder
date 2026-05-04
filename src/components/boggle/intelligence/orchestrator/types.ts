@@ -92,4 +92,10 @@ export interface OrchestratorResult {
   modelCalls: number;
   elapsedMs: number;
   trace: GenerationTrace;
+  /** True if the result's playerRelevantWords met goal.minPlayerRelevantWords. */
+  floorMet: boolean;
+  /** Number of search attempts made (for diagnostics). */
+  attemptsMade: number;
+  /** Total candidates evaluated across all attempts (for "best of K" UI). */
+  totalCandidatesEvaluated: number;
 }

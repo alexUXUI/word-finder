@@ -31,9 +31,10 @@ from typing import Any
 
 import mlflow
 from mlflow.entities import SpanStatus, SpanStatusCode, SpanType
+from mlflow.tracking import MlflowClient
 
 
-TRACKING_URI = os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5000")
+TRACKING_URI = os.environ.get("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
 PROXY_HOST = os.environ.get("MLFLOW_PROXY_HOST", "127.0.0.1")
 PROXY_PORT = int(os.environ.get("MLFLOW_PROXY_PORT", "5001"))
 
@@ -120,6 +121,71 @@ def _replay_trace(payload: dict[str, Any]) -> str:
         return root.trace_id
 
 
+def _log_run(payload: dict[str, Any]) -> str:
+    """
+    Create an MLflow run with params, metrics, tags, and an optional parent.
+    The bench / optimizer / calibrator post here so each (pipeline, goal),
+    each prompt variant, each calibration check appears as a structured
+    run in the MLflow UI — comparable, plottable, browsable.
+
+    Schema:
+      experiment: str (required) — created if missing
+      run_name: str
+      parent_run_id: str | null
+      tags: dict[str, str]
+      params: dict[str, str]   — values stringified (MLflow caps at 6000 chars)
+      metrics: dict[str, float] | dict[str, list[{value: float, step: int}]]
+      artifacts: dict[str, str]  — filename → text content (capped 1MB)
+      status: 'FINISHED' | 'FAILED' | 'RUNNING'
+    """
+    experiment = payload.get("experiment") or "word-finder-runs"
+    mlflow.set_experiment(experiment)
+    client = MlflowClient()
+
+    parent_id = payload.get("parent_run_id")
+    tags = {k: str(v) for k, v in (payload.get("tags") or {}).items()}
+    if parent_id:
+        tags["mlflow.parentRunId"] = str(parent_id)
+    run_name = payload.get("run_name") or "unnamed"
+
+    with mlflow.start_run(run_name=run_name, tags=tags) as run:
+        for k, v in (payload.get("params") or {}).items():
+            try:
+                mlflow.log_param(k, str(v)[:6000])
+            except Exception:
+                pass
+        metrics = payload.get("metrics") or {}
+        for k, v in metrics.items():
+            if isinstance(v, list):
+                # Stepped metric: list of {value, step}.
+                for entry in v:
+                    if isinstance(entry, dict) and "value" in entry:
+                        client.log_metric(
+                            run.info.run_id,
+                            k,
+                            float(entry["value"]),
+                            step=int(entry.get("step", 0)),
+                        )
+            elif isinstance(v, (int, float)):
+                mlflow.log_metric(k, float(v))
+        for filename, content in (payload.get("artifacts") or {}).items():
+            try:
+                # Write to a temp file then log_artifact — MLflow API needs a path.
+                import tempfile, os
+                with tempfile.TemporaryDirectory() as td:
+                    p = os.path.join(td, filename)
+                    with open(p, "w") as fh:
+                        fh.write(content[:1_000_000])
+                    mlflow.log_artifact(p)
+            except Exception:
+                pass
+        # Status.
+        status = payload.get("status", "FINISHED")
+        if status == "FAILED":
+            client.set_terminated(run.info.run_id, status="FAILED")
+        return run.info.run_id
+
+
 def _cors_headers(handler: BaseHTTPRequestHandler) -> None:
     handler.send_header("Access-Control-Allow-Origin", "*")
     handler.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
@@ -154,24 +220,41 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self) -> None:  # noqa: N802
-        if self.path != "/traces":
-            self.send_response(404)
-            _cors_headers(self)
-            self.end_headers()
+        if self.path == "/traces":
+            length = int(self.headers.get("Content-Length", "0"))
+            raw = self.rfile.read(length) if length > 0 else b""
+            try:
+                payload = json.loads(raw.decode("utf-8"))
+            except Exception as exc:  # noqa: BLE001
+                self._reply(400, {"error": f"invalid json: {exc}"})
+                return
+            try:
+                trace_id = _replay_trace(payload)
+            except Exception as exc:  # noqa: BLE001
+                self._reply(500, {"error": f"replay failed: {exc}"})
+                return
+            self._reply(200, {"ok": True, "trace_id": trace_id})
             return
-        length = int(self.headers.get("Content-Length", "0"))
-        raw = self.rfile.read(length) if length > 0 else b""
-        try:
-            payload = json.loads(raw.decode("utf-8"))
-        except Exception as exc:  # noqa: BLE001
-            self._reply(400, {"error": f"invalid json: {exc}"})
+
+        if self.path == "/runs":
+            length = int(self.headers.get("Content-Length", "0"))
+            raw = self.rfile.read(length) if length > 0 else b""
+            try:
+                payload = json.loads(raw.decode("utf-8"))
+            except Exception as exc:  # noqa: BLE001
+                self._reply(400, {"error": f"invalid json: {exc}"})
+                return
+            try:
+                run_id = _log_run(payload)
+            except Exception as exc:  # noqa: BLE001
+                self._reply(500, {"error": f"log_run failed: {exc}"})
+                return
+            self._reply(200, {"ok": True, "run_id": run_id})
             return
-        try:
-            trace_id = _replay_trace(payload)
-        except Exception as exc:  # noqa: BLE001
-            self._reply(500, {"error": f"replay failed: {exc}"})
-            return
-        self._reply(200, {"ok": True, "trace_id": trace_id})
+
+        self.send_response(404)
+        _cors_headers(self)
+        self.end_headers()
 
     def _reply(self, status: int, body: dict[str, Any]) -> None:
         encoded = json.dumps(body).encode()

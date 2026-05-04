@@ -26,6 +26,17 @@ export interface BoardStrategyResult {
 export interface BoardStrategy {
   /** Stable name; matches the registry key. */
   readonly name: string;
+  /**
+   * Languages this strategy can produce sensible boards for. Strategies
+   * that depend on a specific letter pool (legacy-russian) MUST set this.
+   * Strategies that work generally (frequency-weighted is English-tuned but
+   * usable for English/Spanish) list every language they support.
+   *
+   * The pipeline runner filters the strategy registry by `goal.language`
+   * before handing the list to the StrategyRouter, so an English goal
+   * never gets a Russian-only strategy proposed.
+   */
+  readonly supportedLanguages: readonly LanguageType[];
   /** Returns a single candidate board with metadata. */
   generate(config: BoardStrategyConfig): BoardStrategyResult;
 }
