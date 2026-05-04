@@ -165,6 +165,14 @@ export interface ProfileState {
   pendingMutation: boolean;
   /** True when the user has the avatar dropdown open in the top nav. */
   avatarMenuOpen: boolean;
+  /** True when the LeftNav is open as a drawer overlay on mobile/compact
+   *  viewports. Always treated as "open" on desktop where the nav is
+   *  permanently visible. */
+  navDrawerOpen: boolean;
+  /** Mirrors the `(max-width: 720px)` media query — set by the chrome on
+   *  resize, read by TopNav (to show the hamburger) and LeftNav (to
+   *  switch between drawer and persistent layouts). */
+  isCompactViewport: boolean;
 }
 
 export const ProfileCtx = createContext<ProfileState>('profile-context');

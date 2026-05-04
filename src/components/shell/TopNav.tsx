@@ -39,9 +39,12 @@ export const TopNav = component$(() => {
     });
   });
 
-  const title = PAGE_TITLES[loc.url.pathname] ?? 'Word Finder';
+  const title = PAGE_TITLES[loc.url.pathname] ?? '';
   const displayName = profile.profile?.displayName || '';
   const playerId = profile.playerId;
+  // The logo already says "Word Finder", so don't double up on "/" route.
+  const showBreadcrumb = title && title !== 'Word Finder';
+  const compact = profile.isCompactViewport;
 
   const renameInline = $(async () => {
     const next = window.prompt('Display name', displayName)?.trim();
@@ -61,20 +64,40 @@ export const TopNav = component$(() => {
   return (
     <header
       data-testid="topnav"
-      style="position: fixed; top: 0; left: 0; right: 0; height: 56px; z-index: 90; background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 0 18px;"
+      style="position: fixed; top: 0; left: 0; right: 0; height: 56px; z-index: 90; background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 0 14px;"
     >
-      <a
-        href="/"
-        data-testid="topnav-logo"
-        style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #0f172a;"
-      >
-        <span aria-hidden="true" style="font-size: 18px;">📖</span>
-        <span style="font-weight: 700; font-size: 14px; letter-spacing: 0.02em;">Word Finder</span>
-        <span aria-hidden="true" style="color: #cbd5e1; margin: 0 6px;">/</span>
-        <span data-testid="topnav-title" style="font-size: 13px; color: #64748b; font-weight: 500;">
-          {title}
-        </span>
-      </a>
+      <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+        {compact && (
+          <button
+            type="button"
+            data-testid="topnav-hamburger"
+            aria-label={profile.navDrawerOpen ? 'Close navigation' : 'Open navigation'}
+            aria-expanded={profile.navDrawerOpen ? 'true' : 'false'}
+            onClick$={() => (profile.navDrawerOpen = !profile.navDrawerOpen)}
+            style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; background: transparent; border: 1px solid #e2e8f0; border-radius: 8px; color: #475569; cursor: pointer; flex: 0 0 auto;"
+          >
+            <span aria-hidden="true" style="font-size: 16px; line-height: 1;">
+              {profile.navDrawerOpen ? '✕' : '☰'}
+            </span>
+          </button>
+        )}
+        <a
+          href="/"
+          data-testid="topnav-logo"
+          style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #0f172a; min-width: 0;"
+        >
+          <span aria-hidden="true" style="font-size: 18px; flex: 0 0 auto;">📖</span>
+          <span style="font-weight: 700; font-size: 14px; letter-spacing: 0.02em; white-space: nowrap;">Word Finder</span>
+          {showBreadcrumb && (
+            <>
+              <span aria-hidden="true" style="color: #cbd5e1; margin: 0 4px;">/</span>
+              <span data-testid="topnav-title" style="font-size: 13px; color: #64748b; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                {title}
+              </span>
+            </>
+          )}
+        </a>
+      </div>
 
       <div style="position: relative; display: flex; align-items: center; gap: 10px;">
         {playerId && (
@@ -87,9 +110,11 @@ export const TopNav = component$(() => {
             style="display: flex; align-items: center; gap: 8px; background: transparent; border: 0; padding: 4px 6px 4px 4px; border-radius: 999px; cursor: pointer;"
           >
             <Avatar playerId={playerId} displayName={displayName} size={32} />
-            <span style="font-size: 12px; color: #475569; font-weight: 500; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              {displayName || 'Set name'}
-            </span>
+            {!compact && (
+              <span style="font-size: 12px; color: #475569; font-weight: 500; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                {displayName || 'Set name'}
+              </span>
+            )}
           </button>
         )}
 

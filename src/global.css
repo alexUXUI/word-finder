@@ -469,3 +469,9 @@ a.mindblow:hover {
   0%   { transform: translateY(6px); opacity: 0; }
   100% { transform: translateY(0);   opacity: 1; }
 }
+
+/* Mobile drawer backdrop fade-in. */
+@keyframes mp-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

@@ -63,34 +63,34 @@ export const ProfileFriendsTab = component$(() => {
   });
 
   return (
-    <div data-testid="profile-tab-body-friends" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+    <div data-testid="profile-tab-body-friends" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
       {/* Friends list */}
       <section style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px;">
         <h2 style="margin: 0 0 12px; font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase;">
           Friends ({me.friends.length})
         </h2>
 
-        <div style="display: flex; gap: 6px; margin-bottom: 14px;">
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;">
           <input
             data-testid="profile-friend-id-input"
             value={newId.value}
             onInput$={(e, el) => (newId.value = el.value)}
             placeholder="player UUID"
-            style="flex: 2; padding: 7px 10px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-family: ui-monospace, monospace;"
+            style="flex: 1 1 200px; min-width: 0; padding: 7px 10px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-family: ui-monospace, monospace;"
           />
           <input
             data-testid="profile-friend-name-input"
             value={newName.value}
             onInput$={(e, el) => (newName.value = el.value)}
             placeholder="name"
-            style="flex: 1; padding: 7px 10px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px;"
+            style="flex: 1 1 100px; min-width: 0; padding: 7px 10px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px;"
           />
           <button
             type="button"
             data-testid="profile-friend-add"
             onClick$={add}
             disabled={!newId.value.trim()}
-            style="padding: 7px 14px; background: #f59e0b; color: #fff; border: 0; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px;"
+            style="flex: 0 0 auto; padding: 7px 14px; background: #f59e0b; color: #fff; border: 0; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px;"
           >
             Add
           </button>
