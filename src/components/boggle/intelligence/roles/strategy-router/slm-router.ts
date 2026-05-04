@@ -1,16 +1,18 @@
 import type { BoardGenerationGoal, StrategyRouterRole, RoleContext } from '../types';
 import { PICK_STRATEGY_SYSTEM } from '../../prompts/router';
 
-/**
- * SLM-driven strategy selection. The previous procedural orchestrator's
- * `pick_strategy` step, isolated as a role.
- *
- * Bench question (`p01-smart-router` vs `p00-deterministic` /
- * `rule-based-router`): does the SLM's choice produce measurably better
- * boards than the rule table at matched compute?
- */
-export const slmRouter: StrategyRouterRole = {
-  id: 'slm-router',
+export interface SlmRouterParams {
+  /**
+   * Override the system prompt for the strategy-router. Used by the prompt
+   * optimizer (`tools/optimizer/`) to bench variants against the baseline
+   * without modifying the canonical prompt module. `{strategies}` token
+   * still gets templated.
+   */
+  promptOverride?: string;
+}
+
+const buildSlmRouter = (params: SlmRouterParams = {}): StrategyRouterRole => ({
+  id: params.promptOverride ? 'slm-router:override' : 'slm-router',
   kind: 'strategy-router',
   async route(
     goal: BoardGenerationGoal,
@@ -24,7 +26,7 @@ export const slmRouter: StrategyRouterRole = {
       ctx.narrate?.('⚠️ slm-router: no model in context; defaulting');
       return available[0];
     }
-    const sys = PICK_STRATEGY_SYSTEM.replace(
+    const sys = (params.promptOverride ?? PICK_STRATEGY_SYSTEM).replace(
       '{strategies}',
       available.join(', ')
     );
@@ -56,4 +58,10 @@ export const slmRouter: StrategyRouterRole = {
     const lower = r.text.toLowerCase();
     return available.find((s) => lower.includes(s.toLowerCase())) ?? available[0];
   },
-};
+});
+
+/** Default singleton — used by p01/p05/p07. */
+export const slmRouter: StrategyRouterRole = buildSlmRouter();
+
+/** Factory for the optimizer to inject prompt variants. */
+export const makeSlmRouterWithOverride = buildSlmRouter;

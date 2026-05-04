@@ -1,17 +1,15 @@
 import type { MutatorRole, SwapProposal, BoardGenerationGoal, ScoredBoard, RoleContext } from '../types';
 import { MUTATOR_SYSTEM, buildMutatorUserPrompt, parseSwapProposals } from '../../prompts/mutator';
 
-/**
- * SLM-as-letter-swap-policy. Algorithm A from `AI_ENGINEERING.md` §3.
- *
- * The model sees the board, its current score, and the goal. It returns K
- * swap proposals (i, j, rationale). The runner applies each, scores the
- * resulting board, and keeps the best. Beats `random-swap` when the model
- * encodes English priors (vowel adjacency, suffix completion, rare-letter
- * placement) better than uniform random.
- */
-export const slmSwapMutator: MutatorRole = {
-  id: 'slm-swap',
+export interface SlmSwapMutatorParams {
+  /** Override the system prompt — used by the prompt optimizer. */
+  promptOverride?: string;
+}
+
+const buildSlmSwapMutator = (
+  params: SlmSwapMutatorParams = {}
+): MutatorRole => ({
+  id: params.promptOverride ? 'slm-swap:override' : 'slm-swap',
   kind: 'mutator',
   async proposeSwaps(args: {
     board: ScoredBoard;
@@ -39,7 +37,7 @@ export const slmSwapMutator: MutatorRole = {
     let acc = '';
     const r = await ctx.model.generate({
       messages: [
-        { role: 'system', content: MUTATOR_SYSTEM },
+        { role: 'system', content: params.promptOverride ?? MUTATOR_SYSTEM },
         { role: 'user', content: userMsg },
       ],
       // K swaps × ~30 tokens each + JSON scaffolding
@@ -60,4 +58,7 @@ export const slmSwapMutator: MutatorRole = {
     // and the runner skips this iteration (better than fabricating swaps).
     return proposals.slice(0, k);
   },
-};
+});
+
+export const slmSwapMutator: MutatorRole = buildSlmSwapMutator();
+export const makeSlmSwapMutatorWithOverride = buildSlmSwapMutator;
