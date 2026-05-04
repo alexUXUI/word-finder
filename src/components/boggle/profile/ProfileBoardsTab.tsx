@@ -15,7 +15,7 @@ interface BoardMetrics {
   entropy: number;
 }
 
-const computeMetrics = (board: string): BoardMetrics => {
+export const computeMetrics = (board: string): BoardMetrics => {
   const chars = board.toLowerCase().split('').filter((c) => /[a-z]/.test(c));
   const total = chars.length || 1;
   const counts = new Map<string, number>();
@@ -203,7 +203,7 @@ export const BoardsComparison = component$<BoardsComparisonProps>(({ boards }) =
   );
 });
 
-const Stat = component$<{ label: string; value: string; testId: string }>(({ label, value, testId }) => (
+export const Stat = component$<{ label: string; value: string; testId: string }>(({ label, value, testId }) => (
   <div data-testid={testId} style="display: flex; flex-direction: column; gap: 2px;">
     <span style="font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 0.10em; text-transform: uppercase;">{label}</span>
     <span style="font-size: 18px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; line-height: 1;">{value}</span>
