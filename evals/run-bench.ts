@@ -111,6 +111,24 @@ const runOne = async (
   const model = useReal ? null : makeMockProvider({ id: 'mock-bench' });
   if (model) await model.load();
 
+  // Trace capture for distillation. CAPTURE_TRACES=path/to/file.jsonl
+  // appends one JSON record per role.model.generate call, with the
+  // outcome (final score, player words, floor met) attached after the
+  // pipeline completes. See docs/DISTILLATION.md.
+  let captureFh: number | null = null;
+  const capturePath = process.env.CAPTURE_TRACES;
+  if (capturePath) {
+    const dir = path.dirname(path.resolve(REPO_ROOT, capturePath));
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    captureFh = fs.openSync(path.resolve(REPO_ROOT, capturePath), 'a');
+    console.log(`[bench] capturing traces to ${capturePath}`);
+  }
+  const captureTraces = captureFh
+    ? (rec: unknown): void => {
+        fs.writeSync(captureFh!, JSON.stringify(rec) + '\n');
+      }
+    : undefined;
+
   if (!useReal) {
     // Pre-register mocks for every SLM id so pipelines like p06-cascade
     // and p07-self-consistent (which call getProviderForId directly to
@@ -139,6 +157,7 @@ const runOne = async (
       dictionary,
       model: model ?? undefined,
       tracer: NoopTracer,
+      captureTraces: captureTraces as never,
     });
     boards.push({
       board: result.board,

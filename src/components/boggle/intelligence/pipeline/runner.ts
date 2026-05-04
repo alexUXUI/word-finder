@@ -24,6 +24,11 @@ import type {
 } from '../roles/types';
 import { getProviderForId } from '../local-model/factory';
 import {
+  wrapProviderForCapture,
+  type TraceSink,
+  type TraceRecord,
+} from '../local-model/capturing-provider';
+import {
   listStrategiesForLanguage,
   getStrategy,
 } from '../../generation/registry';
@@ -54,6 +59,12 @@ export interface PipelineRunInput {
   signal?: AbortSignal;
   /** Per-style weight overrides. Falls back to default scorer weights. */
   weightsForStyle?: (style: BoardGenerationGoal['style']) => Partial<ScoreWeights>;
+  /**
+   * Trace capture for distillation. When set, every model.generate call
+   * is recorded with (role, system, user, output) and joined to the
+   * pipeline's outcome score post-hoc. See `docs/DISTILLATION.md`.
+   */
+  captureTraces?: TraceSink;
 }
 
 const goalSignature = (g: BoardGenerationGoal): string => {
@@ -131,20 +142,42 @@ export const runPipeline = async (
     scoreWeights: baseWeights,
   };
 
+  // Pending trace records — filled by the capturing-provider wrappers as
+  // each role's model.generate fires. After the pipeline completes we
+  // attach the outcome (finalScore, playerWords, floorMet) to every
+  // record and ship them to the sink. This pairing is the whole point:
+  // training data wants the (input, output, *outcome*) tuple.
+  const pendingTraces: TraceRecord[] = [];
+
   /**
    * Resolve the model for a given role. If the pipeline has a per-role
    * override, instantiate (or fetch from cache) the named provider and
-   * lazy-load it. Otherwise return the default `input.model`.
+   * lazy-load it. Otherwise return the default `input.model`. When
+   * `input.captureTraces` is set, wrap the resolved provider in a
+   * capturing decorator that buffers each call's payload.
    */
   const ctxFor = async (
-    roleKind: keyof RoleModelOverrides
+    roleKind: keyof RoleModelOverrides,
+    roleImplId: string
   ): Promise<RoleContext> => {
     const overrideId = pipeline.roleModels?.[roleKind];
-    if (!overrideId) return baseCtx;
-    const provider = getProviderForId(overrideId);
-    if (!provider.isReady) {
-      cb.onNarrate?.(`⏳ Loading ${overrideId} for role "${roleKind}"…`);
-      await provider.load();
+    let provider = baseCtx.model;
+    if (overrideId) {
+      const p = getProviderForId(overrideId);
+      if (!p.isReady) {
+        cb.onNarrate?.(`⏳ Loading ${overrideId} for role "${roleKind}"…`);
+        await p.load();
+      }
+      provider = p;
+    }
+    if (provider && input.captureTraces) {
+      provider = wrapProviderForCapture(provider, {
+        role: roleKind,
+        roleImpl: roleImplId,
+        traceId: handle.trace_id,
+        generationId: handle.trace_id, // 1:1 today; split later if needed
+        pending: pendingTraces,
+      });
     }
     return { ...baseCtx, model: provider };
   };
@@ -159,7 +192,7 @@ export const runPipeline = async (
     // Step 0 — PromptParser
     cb.onNarrate?.('🎯 Pipeline: ' + pipeline.id);
     const parserSpan = handle.startSpan(`role.${pipeline.roles.promptParser.id}`, 'CHAIN', root);
-    const parserCtx = await ctxFor('prompt-parser');
+    const parserCtx = await ctxFor('prompt-parser', pipeline.roles.promptParser.id);
     const parsedGoal = await pipeline.roles.promptParser.parse(goalIn, parserCtx);
     parserSpan.setAttribute('role', 'prompt-parser');
     parserSpan.setAttribute('impl', pipeline.roles.promptParser.id);
@@ -179,7 +212,7 @@ export const runPipeline = async (
     }
     cb.onNarrate?.('🤔 Strategy router…');
     const routerSpan = handle.startSpan(`role.${pipeline.roles.strategyRouter.id}`, 'CHAT_MODEL', root);
-    const routerCtx = await ctxFor('strategy-router');
+    const routerCtx = await ctxFor('strategy-router', pipeline.roles.strategyRouter.id);
     const strategyId = await pipeline.roles.strategyRouter.route(parsedGoal, available, routerCtx);
     if (pipeline.roles.strategyRouter.id !== 'rule-based:frequency-weighted' &&
         pipeline.roles.strategyRouter.id.startsWith('slm')) {
@@ -200,7 +233,7 @@ export const runPipeline = async (
     // Step 2 — CandidateGenerator
     cb.onNarrate?.('🔍 Generating candidates…');
     const genSpan = handle.startSpan(`role.${pipeline.roles.candidateGenerator.id}`, 'TOOL', root);
-    const genCtx = await ctxFor('candidate-generator');
+    const genCtx = await ctxFor('candidate-generator', pipeline.roles.candidateGenerator.id);
     let candidates = await pipeline.roles.candidateGenerator.generate({
       goal: parsedGoal,
       strategyId,
@@ -227,7 +260,7 @@ export const runPipeline = async (
       mutSpan.setAttribute('impl', mut.id);
       mutSpan.setAttribute('iterations', cfg.iterations);
       cb.onNarrate?.(`🧬 Hill-climb (${mut.id}, ${cfg.iterations} iters × ${cfg.swapsPerIteration} swaps)…`);
-      const mutCtx = await ctxFor('mutator');
+      const mutCtx = await ctxFor('mutator', mut.id);
       mutSpan.setAttribute('model_id', mutCtx.model?.id ?? 'none');
       for (let iter = 0; iter < cfg.iterations; iter++) {
         if (input.signal?.aborted) break;
@@ -280,7 +313,7 @@ export const runPipeline = async (
       const critSpan = handle.startSpan(`role.${critic.id}`, 'EVALUATION', root);
       critSpan.setAttribute('role', 'critic');
       critSpan.setAttribute('impl', critic.id);
-      const critCtx = await ctxFor('critic');
+      const critCtx = await ctxFor('critic', critic.id);
       critSpan.setAttribute('model_id', critCtx.model?.id ?? 'none');
       const ratings = await Promise.all(
         candidates.map((c) => critic.rate({ board: c, goal: parsedGoal, ctx: critCtx }))
@@ -294,7 +327,7 @@ export const runPipeline = async (
 
     // Step 5 — Aggregator
     const aggSpan = handle.startSpan(`role.${pipeline.roles.aggregator.id}`, 'CHAIN', root);
-    const aggCtx = await ctxFor('aggregator');
+    const aggCtx = await ctxFor('aggregator', pipeline.roles.aggregator.id);
     const chosen = await pipeline.roles.aggregator.pick({
       candidates: scored,
       goal: parsedGoal,
@@ -308,7 +341,7 @@ export const runPipeline = async (
     // Step 6 — Narrator
     cb.onNarrate?.('💬 Narrating…');
     const narrSpan = handle.startSpan(`role.${pipeline.roles.narrator.id}`, 'CHAT_MODEL', root);
-    const narrCtx = await ctxFor('narrator');
+    const narrCtx = await ctxFor('narrator', pipeline.roles.narrator.id);
     narrSpan.setAttribute('model_id', narrCtx.model?.id ?? 'none');
     const explanation = await pipeline.roles.narrator.narrate({
       chosen,
@@ -345,6 +378,19 @@ export const runPipeline = async (
       budget_exhausted: false,
       selected_strategy: strategyId,
     });
+
+    // Trace capture: now that the pipeline finished, attach the outcome
+    // to every captured role-call record and ship them to the sink. This
+    // is what makes the records useful for distillation — each (input,
+    // output) pair gets joined to the final-score it contributed to.
+    if (input.captureTraces && pendingTraces.length) {
+      for (const rec of pendingTraces) {
+        rec.outcomeFinalScore = chosen.score.finalScore;
+        rec.outcomePlayerWords = chosen.score.playerRelevantWords;
+        rec.outcomeFloorMet = floorMet;
+        input.captureTraces(rec);
+      }
+    }
 
     return {
       board: chosen.board,
