@@ -1,0 +1,138 @@
+name: Canary
+
+# Runs on every PR (preview deploy) and every push to main (production
+# deploy). Targets the live Cloudflare Pages deployment for the commit
+# under test, runs the @canary-tagged Playwright suite, and writes a
+# sticky PR comment with the result.
+#
+# What this gates:
+#   - The reload-loop class of bug — see tests/e2e/service-worker.spec.ts
+#   - Bundle/chunk fetch failures (the original SW stale-chunk bug)
+#   - JS exceptions during initial hydration
+#
+# What this is NOT:
+#   - A full e2e gate. The broader suite (board interactions, multiplayer,
+#     visual regression) runs locally; canaries here are the fast,
+#     deterministic, safety-net subset that hits real prod-shaped infra.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Only one canary run per branch — newer pushes cancel in-flight runs to
+# save CI minutes and avoid stale comments.
+concurrency:
+  group: canary-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  canary:
+    name: Cloudflare Pages canary
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write   # for sticky PR comment
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Pinned in .node-version. Cloudflare Pages defaults to Node 16
+          # (EOL); we use Node 20 everywhere — local, CI, deploy.
+          node-version-file: .node-version
+          cache: yarn
+
+      - name: Install deps (Yarn 1, frozen lockfile)
+        run: yarn install --frozen-lockfile
+
+      - name: Resolve preview URL and expected SHA
+        id: preview
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BRANCH="${{ github.head_ref }}"
+            SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BRANCH="${{ github.ref_name }}"
+            SHA="${{ github.sha }}"
+          fi
+          # CF Pages branch-alias slug rules (observed): lowercase, replace
+          # non-alphanumerics with `-`, collapse repeats, strip leading/
+          # trailing `-`. Production (main) lives at the bare apex.
+          SLUG=$(echo "$BRANCH" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$//')
+          if [ "$BRANCH" = "main" ]; then
+            URL="https://word-finder-eak.pages.dev"
+          else
+            URL="https://${SLUG}.word-finder-eak.pages.dev"
+          fi
+          echo "branch=$BRANCH"   | tee -a "$GITHUB_OUTPUT"
+          echo "slug=$SLUG"       | tee -a "$GITHUB_OUTPUT"
+          echo "url=$URL"         | tee -a "$GITHUB_OUTPUT"
+          echo "sha=${SHA:0:7}"   | tee -a "$GITHUB_OUTPUT"
+
+      - name: Wait for CF Pages deployment to publish this commit
+        id: wait
+        env:
+          URL: ${{ steps.preview.outputs.url }}
+          EXPECTED: ${{ steps.preview.outputs.sha }}
+        run: |
+          set -uo pipefail
+          # Pages typically publishes a fresh build within 60-180s of push.
+          # We give it 10 minutes in CI to absorb queue spikes.
+          ATTEMPTS=60
+          DELAY=10
+          for i in $(seq 1 "$ATTEMPTS"); do
+            HTML=$(curl -sL -H 'Accept: text/html' --max-time 15 "$URL/" || true)
+            ACTUAL=$(echo "$HTML" \
+              | grep -oE 'x-app-version"\s*content="[a-f0-9]+"' \
+              | grep -oE '"[a-f0-9]+"$' | tr -d '"' | tail -1)
+            if [ -n "${ACTUAL:-}" ] && [ "$ACTUAL" = "$EXPECTED" ]; then
+              echo "Deployment for $EXPECTED is live at $URL after ${i} probe(s)."
+              echo "ready=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "[probe $i/$ATTEMPTS] expected sha=$EXPECTED, served='${ACTUAL:-<none>}'"
+            sleep "$DELAY"
+          done
+          echo "Timed out waiting ${ATTEMPTS}*${DELAY}s for sha=$EXPECTED at $URL."
+          echo "ready=false" >> "$GITHUB_OUTPUT"
+          exit 1
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run @canary suite against the deployment
+        id: canary
+        env:
+          BASE_URL: ${{ steps.preview.outputs.url }}
+          CI: 'true'
+        run: yarn test.e2e --grep "@canary"
+
+      - name: Upload Playwright artifacts on failure
+        if: always() && steps.canary.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-canary-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+
+      - name: Post / update sticky PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: canary
+          message: |
+            ### Canary on Cloudflare Pages preview
+
+            - **Status**: ${{ steps.canary.outcome == 'success' && '✅ pass' || (steps.wait.outcome == 'failure' && '🟡 deployment never published this SHA' || '❌ fail') }}
+            - **Preview**: ${{ steps.preview.outputs.url }}
+            - **Commit**: `${{ steps.preview.outputs.sha }}` (${{ steps.preview.outputs.branch }})
+            - **Tests**: `yarn test.e2e --grep "@canary"`
+            - **Run**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+            ${{ steps.canary.outcome == 'failure' && 'Artifacts (videos, traces, HTML report) are attached to the workflow run.' || '' }}

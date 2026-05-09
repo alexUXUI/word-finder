@@ -1,7 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// `BASE_URL` lets canary runs target a remote deployment (CF Pages
+// preview / production) instead of spinning up a local dev server.
+// When set, we skip the `webServer` block entirely — the deployment
+// is already live and we'd otherwise burn 60+ seconds bringing up a
+// vite dev server we don't need.
+const remoteBaseURL = process.env.BASE_URL;
 const PORT = Number(process.env.PORT ?? 5173);
-const baseURL = `http://localhost:${PORT}`;
+const localBaseURL = `http://localhost:${PORT}`;
+const baseURL = remoteBaseURL ?? localBaseURL;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -32,15 +39,20 @@ export default defineConfig({
       use: { ...devices['Pixel 7'] },
     },
   ],
-  webServer: {
-    command: 'yarn start',
-    // Probe a static asset (always 200) instead of `/` — the dev SSR
-    // returns 404 to plain GETs without an Accept: text/html header,
-    // which Playwright treats as "server not ready" and times out.
-    url: `${baseURL}/manifest.json`,
-    reuseExistingServer: true,
-    timeout: 120_000,
-    stdout: 'ignore',
-    stderr: 'pipe',
-  },
+  // Only spin up a local server when no remote BASE_URL was provided.
+  // Canary runs in CI hit a real CF Pages deployment and must not start
+  // a parallel dev server.
+  webServer: remoteBaseURL
+    ? undefined
+    : {
+        command: 'yarn start',
+        // Probe a static asset (always 200) instead of `/` — the dev SSR
+        // returns 404 to plain GETs without an Accept: text/html header,
+        // which Playwright treats as "server not ready" and times out.
+        url: `${localBaseURL}/manifest.json`,
+        reuseExistingServer: true,
+        timeout: 120_000,
+        stdout: 'ignore',
+        stderr: 'pipe',
+      },
 });

@@ -22,7 +22,7 @@ import { expect, test } from '@playwright/test';
  * These tests pin all three invariants.
  */
 
-test.describe('kill-switch service worker', () => {
+test.describe('kill-switch service worker @canary', () => {
   test.beforeEach(async ({ context }) => {
     // Each test runs against a fresh origin: no leftover SW registrations
     // or caches from a prior test. Without this we'd see false positives
