@@ -1,9 +1,5 @@
 import { component$, useStyles$ } from '@builder.io/qwik';
-import {
-  QwikCityProvider,
-  RouterOutlet,
-  ServiceWorkerRegister,
-} from '@builder.io/qwik-city';
+import { QwikCityProvider, RouterOutlet } from '@builder.io/qwik-city';
 import { RouterHead } from './components/router-head/router-head';
 
 import globalStyles from './global.css?inline';
@@ -17,6 +13,16 @@ export default component$(() => {
    */
   useStyles$(globalStyles);
 
+  // Intentionally NOT rendering <ServiceWorkerRegister />. The Qwik
+  // prefetch SW (compiled from src/routes/service-worker.ts) was the
+  // origin of the stale-chunk bug — its hash-pinned cache became a
+  // permanent 404 source after each redeploy. We replaced the SW source
+  // with a kill-switch (public/service-worker.js) that unregisters
+  // itself, and we no longer auto-register from the page. Legacy users
+  // who already have a registration get cleaned up the next time their
+  // browser auto-updates that SW (it'll fetch the kill-switch bytes,
+  // install, activate, unregister). New visitors never register.
+
   return (
     <QwikCityProvider>
       <head>
@@ -26,7 +32,6 @@ export default component$(() => {
       </head>
       <body lang="en">
         <RouterOutlet />
-        <ServiceWorkerRegister />
       </body>
     </QwikCityProvider>
   );
