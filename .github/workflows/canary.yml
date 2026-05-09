@@ -14,6 +14,11 @@ name: Canary
 #   - A full e2e gate. The broader suite (board interactions, multiplayer,
 #     visual regression) runs locally; canaries here are the fast,
 #     deterministic, safety-net subset that hits real prod-shaped infra.
+#
+# Sticky comment behavior: marocchino/sticky-pull-request-comment
+# updates the same comment on every push (matched by `header: canary`),
+# so reviewers always see the result for HEAD without scrolling past
+# stale entries.
 
 on:
   pull_request:
