@@ -34,7 +34,10 @@ export default defineConfig({
   ],
   webServer: {
     command: 'yarn start',
-    url: baseURL,
+    // Probe a static asset (always 200) instead of `/` — the dev SSR
+    // returns 404 to plain GETs without an Accept: text/html header,
+    // which Playwright treats as "server not ready" and times out.
+    url: `${baseURL}/manifest.json`,
     reuseExistingServer: true,
     timeout: 120_000,
     stdout: 'ignore',
