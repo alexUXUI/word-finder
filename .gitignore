@@ -37,6 +37,15 @@ lerna-debug.log*
 .yarn/*
 !.yarn/releases
 
+# Lockfile invariant: this project pins yarn@1.22.22 via packageManager.
+# yarn.lock is the single source of truth. Accidental npm/pnpm installs
+# generate package-lock.json / pnpm-lock.yaml, and Cloudflare Pages'
+# build runner will detect *every* lockfile present and bail with
+# "Exit with error code: 1" before running yarn install. Keep these
+# ignored so a stray `npm i` doesn't break the deploy.
+package-lock.json
+pnpm-lock.yaml
+
 # Cloudflare
 functions/**/*.js
 

@@ -75,29 +75,41 @@ jobs:
 
       - name: Wait for CF Pages deployment to publish this commit
         id: wait
+        # Disable bash strict mode for this step — `grep` returning non-zero
+        # on a no-match is expected (the deployment isn't ready yet) and
+        # must NOT terminate the script. We do explicit error handling
+        # below.
+        shell: bash --noprofile --norc {0}
         env:
           URL: ${{ steps.preview.outputs.url }}
           EXPECTED: ${{ steps.preview.outputs.sha }}
         run: |
-          set -uo pipefail
           # Pages typically publishes a fresh build within 60-180s of push.
           # We give it 10 minutes in CI to absorb queue spikes.
           ATTEMPTS=60
           DELAY=10
           for i in $(seq 1 "$ATTEMPTS"); do
-            HTML=$(curl -sL -H 'Accept: text/html' --max-time 15 "$URL/" || true)
-            ACTUAL=$(echo "$HTML" \
-              | grep -oE 'x-app-version"\s*content="[a-f0-9]+"' \
-              | grep -oE '"[a-f0-9]+"$' | tr -d '"' | tail -1)
-            if [ -n "${ACTUAL:-}" ] && [ "$ACTUAL" = "$EXPECTED" ]; then
+            STATUS=$(curl -sL -H 'Accept: text/html' --max-time 15 \
+              -o /tmp/canary-html -w '%{http_code}' "$URL/" 2>/dev/null)
+            STATUS=${STATUS:-000}
+            ACTUAL=""
+            if [ "$STATUS" = "200" ]; then
+              # The SSR HTML embeds <meta name="x-app-version" content="<sha7>">
+              # — that's our authoritative "this deployment is the one I want"
+              # signal. Pull it out with a tolerant grep + sed.
+              ACTUAL=$(grep -oE 'x-app-version"[[:space:]]*content="[a-f0-9]+"' /tmp/canary-html \
+                | sed -E 's/.*content="([a-f0-9]+)"/\1/' \
+                | tail -1)
+            fi
+            if [ -n "$ACTUAL" ] && [ "$ACTUAL" = "$EXPECTED" ]; then
               echo "Deployment for $EXPECTED is live at $URL after ${i} probe(s)."
               echo "ready=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
-            echo "[probe $i/$ATTEMPTS] expected sha=$EXPECTED, served='${ACTUAL:-<none>}'"
+            echo "[probe $i/$ATTEMPTS] http=$STATUS expected=$EXPECTED served='${ACTUAL:-<none>}'"
             sleep "$DELAY"
           done
-          echo "Timed out waiting ${ATTEMPTS}*${DELAY}s for sha=$EXPECTED at $URL."
+          echo "Timed out waiting $((ATTEMPTS*DELAY))s for sha=$EXPECTED at $URL."
           echo "ready=false" >> "$GITHUB_OUTPUT"
           exit 1
 
